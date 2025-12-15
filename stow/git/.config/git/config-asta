@@ -1,0 +1,4 @@
+[user]
+  name = Kyle Denis
+  email = kyle.denis@asta.com.au
+  signingkey = ~/.ssh/keys/bitbucket-rogue-m5.pub

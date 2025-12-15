@@ -1,0 +1,30 @@
+[user]
+  name = Kyle Denis
+  email = signup+github@kyleden.is
+  signingkey = ~/.ssh/keys/github-rogue-m5.pub
+
+[init]
+  defaultBranch = master
+
+[pull]
+  rebase = false
+
+# Asta identity for anything under ~/Documents/paras/00-projects/work/asta/
+[includeIf "gitdir:~/Documents/paras/00-projects/work/asta/"]
+  path = ~/.config/git/config-asta
+
+# Example: another identity
+# [includeIf "gitdir:~/Documents/paras/00-projects/work/denis-digital/"]
+#   path = ~/.config/git/config-denis-digital
+
+# --- commit signing (personal default) ---
+[gpg]
+  format = ssh
+
+[gpg "ssh"]
+  program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
+  allowedSignersFile = ~/.config/git/allowed-signers
+
+[commit]
+  gpgsign = true
+

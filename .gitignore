@@ -1,0 +1,101 @@
+# macOS / Finder noise
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+
+# Temporary / backups / swap files
+*~
+*.tmp
+*.temp
+*.bak
+*.orig
+*.swp
+*.swo
+
+# Logs / histories / caches
+*.log
+.zsh_history
+.bash_history
+.zcompdump*
+.lesshst
+.viminfo
+.cache/
+.local/share/
+tmp/
+logs/
+
+# Editor / IDE noise
+.vscode/
+.idea/
+*.code-workspace
+
+# Language / tooling artefacts
+node_modules/
+dist/
+build/
+coverage/
+.nyc_output/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+
+# Secrets / credentials
+.env
+.env.*
+*.pem
+*.p12
+*.pfx
+*.key
+*.crt
+*.cer
+*.der
+*.mobileprovision
+*.token
+*.secret
+*.secrets
+*.apikey
+secrets/
+credentials/
+
+# SSH
+stow/ssh/.ssh/id_*
+stow/ssh/.ssh/*_rsa
+stow/ssh/.ssh/*_dsa
+stow/ssh/.ssh/*_ecdsa
+stow/ssh/.ssh/*_ed25519
+!stow/ssh/.ssh/*.pub
+!stow/ssh/.ssh/config
+stow/ssh/.ssh/known_hosts
+stow/ssh/.ssh/authorized_keys
+
+# GPG
+stow/**/.gnupg/
+
+# 1Password / OS agent sockets
+**/agent.sock
+**/*.sock
+
+# Homebrew local state
+Brewfile.lock.json
+
+# Archive / downloads
+*.zip
+*.tar
+*.gz
+*.7z
+*.dmg
+*.pkg
+
+# Old migration junk
+dotfiles-old/
+
+# Git internal
+.git/
