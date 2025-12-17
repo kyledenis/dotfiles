@@ -1,0 +1,83 @@
+# --------------------------------------------------
+# Core
+# --------------------------------------------------
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+
+# --------------------------------------------------
+# Completion
+# --------------------------------------------------
+autoload -Uz compinit
+compinit -d "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump"
+
+# Case-insensitive completion
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+zstyle ':completion:*' menu select
+
+# --------------------------------------------------
+# History (Atuin)
+# --------------------------------------------------
+if command -v atuin >/dev/null; then
+  eval "$(atuin init zsh)"
+fi
+
+# --------------------------------------------------
+# Navigation (Zoxide) — DO NOT override cd
+# --------------------------------------------------
+if command -v zoxide >/dev/null; then
+  eval "$(zoxide init zsh)"
+fi
+
+# --------------------------------------------------
+# FZF
+# --------------------------------------------------
+if command -v fzf >/dev/null; then
+  eval "$(fzf --zsh)"
+fi
+
+# --------------------------------------------------
+# Direnv
+# --------------------------------------------------
+if command -v direnv >/dev/null; then
+  eval "$(direnv hook zsh)"
+fi
+
+# --------------------------------------------------
+# thefuck
+# --------------------------------------------------
+if command -v thefuck >/dev/null; then
+  eval "$(thefuck --alias)"
+fi
+
+# --------------------------------------------------
+# Quality of life
+# --------------------------------------------------
+alias l='eza'
+alias la='eza -a'
+alias ll='eza -lah'
+alias lsa='eza -la'
+alias lt='eza -T'
+alias cat='bat'
+
+alias ..='cd ..'
+
+alias gs='git status'
+alias ga='git add'
+alias gc='git commit'
+alias gp='git push'
+
+# --------------------------------------------------
+# Syntax + Suggestions
+# --------------------------------------------------
+[[ -r /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]] \
+  && source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+
+[[ -r /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]] \
+  && source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+
+# --------------------------------------------------
+# Prompt
+# --------------------------------------------------
+[[ -r /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme ]] \
+  && source /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme
+
+[[ -f "$HOME/.p10k.zsh" ]] && source "$HOME/.p10k.zsh"
