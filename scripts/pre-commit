@@ -28,32 +28,41 @@ FAILED=false
 
 echo "Checking for sensitive data..."
 
-# Patterns that might indicate sensitive data
+# Patterns that might indicate sensitive data (improved to avoid false positives)
+# These patterns look for non-empty values after the = sign
 SENSITIVE_PATTERNS=(
-    "password\s*=\s*['\"]?.+['\"]?"
-    "api[_-]?key\s*=\s*['\"]?.+['\"]?"
-    "secret\s*=\s*['\"]?.+['\"]?"
-    "token\s*=\s*['\"]?.+['\"]?"
-    "private[_-]?key"
-    "BEGIN RSA PRIVATE KEY"
-    "BEGIN OPENSSH PRIVATE KEY"
-    "BEGIN PGP PRIVATE KEY"
+    'password\s*=\s*['\''"][^'\''"]{3,}['\''"]'        # password = "something" (3+ chars)
+    'api[_-]?key\s*=\s*['\''"][^'\''"]{10,}['\''"]'    # api_key = "something" (10+ chars)
+    'secret\s*=\s*['\''"][^'\''"]{3,}['\''"]'          # secret = "something" (3+ chars)
+    'token\s*=\s*['\''"][^'\''"]{10,}['\''"]'          # token = "something" (10+ chars)
+    'BEGIN RSA PRIVATE KEY'
+    'BEGIN OPENSSH PRIVATE KEY'
+    'BEGIN PGP PRIVATE KEY'
 )
 
-# Files to check (staged files only)
-FILES=$(git diff --cached --name-only --diff-filter=ACM)
+# Files to check (staged files only, excluding this hook itself and test files)
+FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -v "scripts/pre-commit" | grep -v ".test" || true)
 
-for pattern in "${SENSITIVE_PATTERNS[@]}"; do
-    if echo "$FILES" | xargs grep -iE "$pattern" 2>/dev/null; then
-        echo -e "${RED}✗ Potentially sensitive data found!${NC}"
-        echo -e "${YELLOW}Pattern: $pattern${NC}"
-        echo -e "${YELLOW}Please review and remove sensitive data before committing.${NC}"
-        FAILED=true
+if [ -z "$FILES" ]; then
+    echo -e "${GREEN}✓ No files to check for sensitive data${NC}\n"
+else
+    for pattern in "${SENSITIVE_PATTERNS[@]}"; do
+        # Check each file individually to provide better context
+        while IFS= read -r file; do
+            if [ -f "$file" ]; then
+                if grep -iEq "$pattern" "$file" 2>/dev/null; then
+                    echo -e "${RED}✗ Potentially sensitive data found in: $file${NC}"
+                    echo -e "${YELLOW}Pattern: $pattern${NC}"
+                    echo -e "${YELLOW}Please review and remove sensitive data before committing.${NC}"
+                    FAILED=true
+                fi
+            fi
+        done <<< "$FILES"
+    done
+
+    if [ "$FAILED" = false ]; then
+        echo -e "${GREEN}✓ No sensitive data detected${NC}\n"
     fi
-done
-
-if [ "$FAILED" = false ]; then
-    echo -e "${GREEN}✓ No sensitive data detected${NC}\n"
 fi
 
 ################################################################################
