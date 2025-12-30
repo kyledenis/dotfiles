@@ -222,36 +222,173 @@ findlarge() {
     find . -type f -size "+$size" -exec ls -lh {} \; | awk '{ print $9 ": " $5 }'
 }
 
-# Clean up system
+# Clean up system safely
+# Usage: cleanup [--dry-run] [--all] [--force]
+#   --dry-run  Show what would be deleted without deleting
+#   --all      Include aggressive cleanup (Docker images, all caches)
+#   --force    Skip confirmation prompts
 cleanup() {
-    echo "Cleaning up..."
+    local dry_run=false
+    local aggressive=false
+    local force=false
 
-    # Homebrew
+    # Parse arguments
+    for arg in "$@"; do
+        case "$arg" in
+            --dry-run) dry_run=true ;;
+            --all) aggressive=true ;;
+            --force) force=true ;;
+            --help|-h)
+                echo "Usage: cleanup [--dry-run] [--all] [--force]"
+                echo "  --dry-run  Show what would be deleted without deleting"
+                echo "  --all      Include aggressive cleanup (all Docker images, all caches)"
+                echo "  --force    Skip confirmation prompts"
+                return 0
+                ;;
+            *)
+                echo "Unknown option: $arg"
+                echo "Run 'cleanup --help' for usage"
+                return 1
+                ;;
+        esac
+    done
+
+    if $dry_run; then
+        echo "=== DRY RUN MODE - No files will be deleted ==="
+        echo ""
+    fi
+
+    # Homebrew cleanup (always safe)
     if command -v brew >/dev/null; then
-        echo "Cleaning Homebrew..."
-        brew cleanup -s
-        brew autoremove
+        echo "📦 Homebrew cleanup..."
+        if $dry_run; then
+            brew cleanup --dry-run 2>/dev/null | head -20
+            echo "  (showing first 20 items)"
+        else
+            brew cleanup
+            brew autoremove
+        fi
+        echo ""
     fi
 
-    # Python cache
-    echo "Cleaning Python cache..."
-    find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null
-    find . -type f -name "*.pyc" -delete 2>/dev/null
+    # Python cache - only in current directory, with safety checks
+    local cwd="$PWD"
+    local dangerous_paths=("$HOME" "/" "/Users" "/System" "/Library" "/Applications" "/var" "/etc" "/usr" "/bin" "/sbin" "/tmp")
 
-    # Node modules (careful with this one!)
-    # find . -name "node_modules" -type d -prune -print -exec rm -rf {} \;
+    local is_dangerous=false
+    for dangerous in "${dangerous_paths[@]}"; do
+        if [[ "$cwd" == "$dangerous" ]]; then
+            is_dangerous=true
+            break
+        fi
+    done
 
-    # macOS
-    echo "Cleaning macOS caches..."
-    rm -rf ~/Library/Caches/*
+    if $is_dangerous; then
+        echo "⚠️  Skipping Python cache cleanup (running from system directory: $cwd)"
+        echo "   Run from a project directory to clean Python caches"
+    else
+        # Check if this looks like a Python project
+        if [[ -f "setup.py" ]] || [[ -f "pyproject.toml" ]] || [[ -f "requirements.txt" ]] || [[ -d "venv" ]] || [[ -d ".venv" ]]; then
+            echo "🐍 Python cache cleanup (current directory only)..."
+            local pycache_count=$(find . -maxdepth 5 -type d -name "__pycache__" 2>/dev/null | wc -l | tr -d ' ')
+            local pyc_count=$(find . -maxdepth 5 -type f -name "*.pyc" 2>/dev/null | wc -l | tr -d ' ')
 
-    # Docker
+            if [[ "$pycache_count" -gt 0 ]] || [[ "$pyc_count" -gt 0 ]]; then
+                echo "   Found: $pycache_count __pycache__ dirs, $pyc_count .pyc files"
+                if $dry_run; then
+                    find . -maxdepth 5 -type d -name "__pycache__" 2>/dev/null | head -10
+                    [[ "$pycache_count" -gt 10 ]] && echo "   ... and $((pycache_count - 10)) more"
+                else
+                    find . -maxdepth 5 -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null
+                    find . -maxdepth 5 -type f -name "*.pyc" -delete 2>/dev/null
+                    echo "   ✓ Cleaned"
+                fi
+            else
+                echo "   Nothing to clean"
+            fi
+        else
+            echo "🐍 Skipping Python cleanup (not a Python project directory)"
+        fi
+    fi
+    echo ""
+
+    # macOS caches - only with --all flag due to side effects
+    if $aggressive; then
+        echo "🍎 macOS cache cleanup..."
+        local cache_size=$(du -sh ~/Library/Caches 2>/dev/null | cut -f1)
+        echo "   Cache size: $cache_size"
+
+        if $dry_run; then
+            echo "   Would delete: ~/Library/Caches/*"
+            ls ~/Library/Caches 2>/dev/null | head -10
+            echo "   ..."
+        else
+            if $force; then
+                rm -rf ~/Library/Caches/* 2>/dev/null
+                echo "   ✓ Cleaned"
+            else
+                echo -n "   Delete all application caches? This may log you out of some apps. (y/N) "
+                read -r response
+                if [[ "$response" =~ ^[Yy]$ ]]; then
+                    rm -rf ~/Library/Caches/* 2>/dev/null
+                    echo "   ✓ Cleaned"
+                else
+                    echo "   Skipped"
+                fi
+            fi
+        fi
+        echo ""
+    fi
+
+    # Docker cleanup - conservative by default
     if command -v docker >/dev/null; then
-        echo "Cleaning Docker..."
-        docker system prune -af
+        # Check if Docker daemon is running
+        if docker info >/dev/null 2>&1; then
+            echo "🐳 Docker cleanup..."
+
+            if $aggressive; then
+                # Aggressive: remove ALL unused images
+                if $dry_run; then
+                    echo "   Would remove all unused containers, networks, and images"
+                    docker system df
+                else
+                    if $force; then
+                        docker system prune -af
+                        echo "   ✓ Cleaned (all unused images removed)"
+                    else
+                        echo -n "   Remove ALL unused images (not just dangling)? (y/N) "
+                        read -r response
+                        if [[ "$response" =~ ^[Yy]$ ]]; then
+                            docker system prune -af
+                            echo "   ✓ Cleaned"
+                        else
+                            # Fall back to conservative cleanup
+                            docker system prune -f
+                            echo "   ✓ Cleaned (dangling images only)"
+                        fi
+                    fi
+                fi
+            else
+                # Conservative: only dangling images and stopped containers
+                if $dry_run; then
+                    echo "   Would remove stopped containers and dangling images"
+                    docker system df
+                else
+                    docker system prune -f
+                    echo "   ✓ Cleaned (dangling images only)"
+                fi
+            fi
+        else
+            echo "🐳 Docker: daemon not running, skipping"
+        fi
+        echo ""
     fi
 
-    echo "Cleanup complete!"
+    if $dry_run; then
+        echo "=== DRY RUN COMPLETE - Run without --dry-run to execute ==="
+    else
+        echo "✅ Cleanup complete!"
+    fi
 }
 
 # File Operations
