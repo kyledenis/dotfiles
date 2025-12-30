@@ -1,0 +1,205 @@
+# ============================================================================
+# Starship Prompt Configuration
+# ============================================================================
+# Alternative to Powerlevel10k - minimal, fast, and customizable
+
+# General settings
+format = """
+[┌─](bold green)$username$hostname$directory$git_branch$git_status$python$nodejs$rust$golang$docker_context$kubernetes
+[└─>](bold green) """
+
+# Timeout for commands (milliseconds)
+command_timeout = 1000
+scan_timeout = 30
+
+# Add a newline before the prompt
+add_newline = true
+
+# Username
+[username]
+show_always = true
+style_user = "bold blue"
+style_root = "bold red"
+format = "[$user]($style) "
+
+# Hostname
+[hostname]
+ssh_only = false
+format = "[@$hostname](bold yellow) "
+disabled = false
+
+# Directory
+[directory]
+truncation_length = 3
+truncate_to_repo = true
+format = "[$path]($style)[$read_only]($read_only_style) "
+style = "bold cyan"
+read_only = " 🔒"
+read_only_style = "red"
+truncation_symbol = "…/"
+home_symbol = "~"
+
+[directory.substitutions]
+"Documents/paras/00-projects" = "📁 Projects"
+"Documents/paras/01-areas" = "🎯 Areas"
+"Documents/paras/02-resources" = "📚 Resources"
+"Documents/paras/03-archive" = "📦 Archive"
+"Documents/paras/04-system" = "⚙️  System"
+"Documents/paras" = "🗂️  PARAS"
+
+# Git Branch
+[git_branch]
+symbol = " "
+format = "[$symbol$branch]($style) "
+style = "bold purple"
+truncation_length = 20
+truncation_symbol = "…"
+
+# Git Status
+[git_status]
+format = "([$all_status$ahead_behind]($style) )"
+style = "bold red"
+conflicted = "🏳"
+up_to_date = "✓"
+untracked = "?"
+ahead = "⇡${count}"
+diverged = "⇕⇡${ahead_count}⇣${behind_count}"
+behind = "⇣${count}"
+stashed = "$"
+modified = "!"
+staged = "[++\($count\)](green)"
+renamed = "»"
+deleted = "✘"
+
+# Git Commit
+[git_commit]
+commit_hash_length = 7
+tag_symbol = "🏷 "
+
+# Git State
+[git_state]
+format = '[\($state( $progress_current of $progress_total)\)]($style) '
+
+# Python
+[python]
+symbol = " "
+format = '[${symbol}${pyenv_prefix}(${version} )(\($virtualenv\) )]($style)'
+style = "yellow bold"
+pyenv_version_name = false
+pyenv_prefix = "pyenv "
+python_binary = ["python3", "python"]
+detect_extensions = ["py"]
+detect_files = [".python-version", "Pipfile", "pyproject.toml", "requirements.txt", "setup.py", "tox.ini"]
+detect_folders = []
+
+# Node.js
+[nodejs]
+symbol = " "
+format = "[$symbol($version )]($style)"
+style = "bold green"
+detect_extensions = ["js", "mjs", "cjs", "ts"]
+detect_files = ["package.json", ".node-version"]
+detect_folders = ["node_modules"]
+
+# Rust
+[rust]
+symbol = " "
+format = "[$symbol($version )]($style)"
+style = "bold red"
+detect_extensions = ["rs"]
+detect_files = ["Cargo.toml"]
+detect_folders = []
+
+# Go
+[golang]
+symbol = " "
+format = "[$symbol($version )]($style)"
+style = "bold cyan"
+detect_extensions = ["go"]
+detect_files = ["go.mod", "go.sum", "glide.yaml", "Gopkg.yml", "Gopkg.lock"]
+detect_folders = ["Godeps"]
+
+# Docker
+[docker_context]
+symbol = " "
+format = "[$symbol$context]($style) "
+style = "blue bold"
+only_with_files = true
+detect_extensions = []
+detect_files = ["docker-compose.yml", "docker-compose.yaml", "Dockerfile"]
+detect_folders = []
+
+# Kubernetes
+[kubernetes]
+symbol = "☸ "
+format = '[$symbol$context( \($namespace\))]($style) '
+style = "cyan bold"
+disabled = true
+
+# AWS
+[aws]
+symbol = " "
+format = '[$symbol($profile )(\($region\) )(\[$duration\] )]($style)'
+style = "bold yellow"
+disabled = true
+
+# Time
+[time]
+disabled = false
+format = '🕙[\[ $time \]]($style) '
+time_format = "%T"
+style = "bold white"
+utc_time_offset = "local"
+
+# Command Duration
+[cmd_duration]
+min_time = 500
+format = "took [$duration]($style) "
+style = "bold yellow"
+show_milliseconds = false
+disabled = false
+
+# Battery
+[battery]
+full_symbol = "🔋"
+charging_symbol = "⚡️"
+discharging_symbol = "💀"
+unknown_symbol = "❓"
+empty_symbol = "🪫"
+
+[[battery.display]]
+threshold = 10
+style = "bold red"
+
+[[battery.display]]
+threshold = 30
+style = "bold yellow"
+
+# Character
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"
+vicmd_symbol = "[❮](bold green)"
+
+# Memory Usage
+[memory_usage]
+disabled = false
+threshold = 75
+symbol = " "
+format = "$symbol[$ram( | $swap)]($style) "
+style = "bold dimmed white"
+
+# Jobs
+[jobs]
+symbol = "✦"
+number_threshold = 1
+symbol_threshold = 1
+format = "[$symbol$number]($style) "
+style = "bold blue"
+
+# Status
+[status]
+disabled = false
+format = '[\[$symbol$status\]]($style) '
+symbol = "✖"
+style = "bold red"

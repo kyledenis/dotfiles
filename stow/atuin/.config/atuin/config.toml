@@ -1,0 +1,57 @@
+# ============================================================================
+# Atuin Configuration - Shell History Sync
+# ============================================================================
+
+# Sync settings
+auto_sync = true
+sync_frequency = "1h"
+sync_address = "https://api.atuin.sh"
+
+# Search settings
+search_mode = "fuzzy"              # fuzzy, prefix, fulltext, skim
+filter_mode = "global"             # global, host, session, directory
+filter_mode_shell_up_key_binding = "directory"  # Use directory filter for up key
+style = "compact"                  # compact, full, auto
+inline_height = 20
+show_preview = true
+max_preview_height = 4
+show_help = true
+exit_mode = "return-original"      # return-original, return-query
+word_jump_mode = "emacs"          # emacs, subl
+
+# Session settings
+session_token = ""
+
+# History settings
+dialect = "us"                     # us, uk
+history_filter = [
+    "^ls",
+    "^cd",
+    "^pwd",
+    "^exit",
+]
+
+# Exclude certain commands from history
+cwd_filter = [
+    "/tmp",
+    "$HOME/Downloads",
+]
+
+# Key bindings
+keymap_mode = "auto"              # auto, emacs, vim-normal, vim-insert
+keymap_cursor = "auto"            # auto, blink-block, blink-bar, steady-block, steady-bar
+
+# Stats
+stats = true
+common_subcommands = [
+    "cargo",
+    "go",
+    "git",
+    "npm",
+    "yarn",
+    "pnpm",
+]
+common_prefix = ["sudo"]
+
+# UI settings
+enter_accept = true

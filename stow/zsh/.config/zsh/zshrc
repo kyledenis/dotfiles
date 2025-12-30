@@ -49,6 +49,12 @@ if command -v thefuck >/dev/null; then
 fi
 
 # --------------------------------------------------
+# Functions
+# --------------------------------------------------
+[[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/functions.zsh" ]] \
+  && source "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/functions.zsh"
+
+# --------------------------------------------------
 # Quality of life
 # --------------------------------------------------
 alias l='eza'

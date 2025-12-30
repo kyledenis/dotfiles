@@ -1,0 +1,325 @@
+# Brewfile for macOS setup
+# Usage: brew bundle --file=~/Documents/paras/04-system/dotfiles/bootstrap/brewfile
+
+# Taps
+tap "homebrew/bundle"
+tap "homebrew/cask-fonts"
+tap "homebrew/services"
+
+# ============================================================================
+# CLI Tools & Utilities
+# ============================================================================
+
+# Shell & Terminal
+brew "zsh"                    # Z shell
+brew "zsh-autosuggestions"    # Fish-like autosuggestions
+brew "zsh-syntax-highlighting" # Fish-like syntax highlighting
+brew "powerlevel10k"          # Powerlevel10k theme
+brew "starship"               # Alternative prompt (optional)
+
+# Core Utilities (GNU replacements)
+brew "coreutils"              # GNU core utilities
+brew "moreutils"              # Additional useful utilities
+brew "findutils"              # GNU find, locate, updatedb, xargs
+brew "grep"                   # GNU grep
+brew "gnu-sed"                # GNU sed
+brew "gnu-tar"                # GNU tar
+brew "gawk"                   # GNU awk
+
+# File Management
+brew "tree"                   # Directory tree visualization
+brew "fd"                     # Modern find alternative
+brew "ripgrep"                # Fast grep alternative
+brew "fzf"                    # Fuzzy finder
+brew "bat"                    # Cat with syntax highlighting
+brew "eza"                    # Modern ls replacement
+brew "trash"                  # Safe rm alternative
+brew "rsync"                  # File synchronization
+brew "rclone"                 # Cloud storage sync
+
+# Text Processing
+brew "jq"                     # JSON processor
+brew "yq"                     # YAML processor
+brew "sed"                    # Stream editor
+brew "awk"                    # Text processing
+
+# Version Control
+brew "git"                    # Version control
+brew "git-lfs"                # Git Large File Storage
+brew "gh"                     # GitHub CLI
+brew "tig"                    # Text-mode interface for git
+
+# System Monitoring & Info
+brew "htop"                   # Interactive process viewer
+brew "btop"                   # Modern htop alternative
+brew "ncdu"                   # Disk usage analyzer
+brew "duf"                    # Disk usage/free utility
+brew "tldr"                   # Simplified man pages
+brew "neofetch"               # System information
+
+# Network Tools
+brew "wget"                   # File retrieval
+brew "curl"                   # Data transfer
+brew "httpie"                 # User-friendly HTTP client
+brew "nmap"                   # Network scanner
+brew "mtr"                    # Network diagnostic tool
+brew "speedtest-cli"          # Internet speed test
+
+# Compression & Archives
+brew "p7zip"                  # 7-Zip port
+brew "unrar"                  # RAR extraction
+brew "xz"                     # XZ compression
+
+# Security & Privacy
+brew "gnupg"                  # GPG encryption
+brew "openssh"                # SSH client
+brew "openssl"                # SSL/TLS toolkit
+brew "pinentry-mac"           # GPG pinentry for macOS
+
+# Password Management
+brew "pass"                   # Unix password manager
+brew "bitwarden-cli"          # Bitwarden CLI (backup to 1Password)
+
+# ============================================================================
+# Development Tools
+# ============================================================================
+
+# Programming Languages
+brew "python@3.12"            # Python 3.12
+brew "python@3.11"            # Python 3.11 (for compatibility)
+brew "node"                   # Node.js
+brew "go"                     # Go language
+brew "rust"                   # Rust language
+
+# Python Tools
+brew "pipx"                   # Install Python apps in isolated environments
+brew "poetry"                 # Python dependency management
+brew "black"                  # Python code formatter
+brew "ruff"                   # Fast Python linter
+
+# Node Tools
+brew "yarn"                   # Alternative package manager
+brew "pnpm"                   # Fast, disk space efficient package manager
+
+# Database
+brew "postgresql@16"          # PostgreSQL database
+brew "redis"                  # Redis key-value store
+brew "sqlite"                 # SQLite database
+
+# DevOps & Cloud
+brew "docker"                 # Container runtime
+brew "docker-compose"         # Multi-container Docker applications
+brew "kubectl"                # Kubernetes CLI
+brew "terraform"              # Infrastructure as code
+brew "ansible"                # Configuration management
+brew "aws-cli"                # AWS command line interface
+
+# Code Quality
+brew "shellcheck"             # Shell script linter
+brew "hadolint"               # Dockerfile linter
+brew "yamllint"               # YAML linter
+
+# Build Tools
+brew "make"                   # Build automation
+brew "cmake"                  # Cross-platform build system
+brew "pkg-config"             # Package configuration
+
+# ============================================================================
+# Productivity & Utilities
+# ============================================================================
+
+# Shell Enhancement
+brew "thefuck"                # Correct console commands
+brew "atuin"                  # Shell history sync
+brew "zoxide"                 # Smarter cd command
+brew "direnv"                 # Environment switcher
+
+# Text Editors & IDEs
+brew "vim"                    # Vi improved
+brew "neovim"                 # Hyperextensible Vim-based text editor
+brew "nano"                   # Simple text editor
+
+# Media & File Handling
+brew "ffmpeg"                 # Video/audio processing
+brew "imagemagick"            # Image manipulation
+brew "exiftool"               # Read/write meta information
+
+# Misc Utilities
+brew "stow"                   # Symlink farm manager (dotfiles)
+brew "tmux"                   # Terminal multiplexer
+brew "screen"                 # Terminal multiplexer alternative
+brew "watch"                  # Execute program periodically
+
+# ============================================================================
+# Applications (Casks) - Based on your actual installed apps
+# ============================================================================
+
+# Browsers
+cask "arc"                    # Modern browser
+cask "brave-browser"          # Privacy-focused browser
+cask "firefox"                # Mozilla Firefox
+cask "zen"                    # Zen browser
+
+# Development & IDEs
+cask "android-studio"         # Android development
+cask "arduino-ide"            # Arduino programming
+cask "cursor"                 # AI-powered IDE
+cask "docker"                 # Docker Desktop
+cask "github"                 # GitHub Desktop
+cask "iterm2"                 # Terminal emulator
+cask "ghostty"                # GPU-accelerated terminal
+cask "postman"                # API development
+cask "visual-studio-code"     # VS Code
+cask "windsurf"               # Development tool
+
+# AI Tools
+cask "chatgpt"                # ChatGPT desktop
+cask "chatgpt-atlas"          # ChatGPT Atlas
+cask "claude"                 # Claude desktop
+cask "ollama"                 # Run LLMs locally
+
+# Communication
+cask "discord"                # Community chat
+cask "microsoft-teams"        # Team collaboration
+cask "signal"                 # Secure messaging
+cask "whatsapp"               # WhatsApp desktop
+
+# Productivity & Organization
+cask "fantastical"            # Calendar app
+cask "linear-linear"          # Issue tracking
+cask "notion"                 # All-in-one workspace
+cask "obsidian"               # Note-taking (great with PARAS)
+cask "paper"                  # Facebook Paper
+cask "raycast"                # Launcher & productivity
+
+# Window Management & UI
+cask "alt-tab"                # Windows-style alt-tab
+cask "bartender"              # Menu bar organization
+cask "bettertouchtool"        # Gestures & automation
+cask "rectangle"              # Window snapping
+cask "swish"                  # Trackpad gestures
+
+# Utilities - System & Power
+cask "1password"              # Password manager
+cask "airbuddy"               # AirPods companion
+cask "alcove"                 # App organizer
+cask "aldente"                # Battery charge limiter
+cask "antigravity"            # Window manager
+cask "betterdisplay"          # Display management
+cask "comet"                  # Video conference tool
+cask "flux"                   # Blue light filter
+cask "grandperspective"       # Disk usage visualizer
+cask "hazel"                  # Automated file organization
+cask "home-assistant"         # Home automation
+cask "keka"                   # Archive utility
+cask "kiwix"                  # Offline Wikipedia
+cask "little-snitch"          # Firewall & network monitor
+cask "lunar"                  # Monitor brightness control
+cask "moebius"                # ASCII art editor
+cask "multiviewer"            # Stream viewer
+cask "numi"                   # Beautiful calculator
+cask "oversight"              # Webcam & mic monitor
+cask "paste"                  # Clipboard manager
+cask "selfcontrol"            # Website blocker
+cask "sf-symbols"             # Apple SF Symbols
+cask "stats"                  # System monitor menubar
+cask "suspicious-package"     # Inspect installer packages
+cask "touchdesigner"          # Visual development
+
+# Utilities - Screenshots & Media
+cask "cleanshot"              # Screenshot tool
+cask "imageoptim"             # Image compression
+cask "pixelsnap"              # Screen measurement tool
+cask "superwhisper"           # Voice transcription
+cask "textsniper"             # OCR tool
+
+# Design & Creative
+cask "canva"                  # Design platform
+cask "figma"                  # Interface design
+cask "gimp"                   # Image editor
+cask "rive"                   # Animation tool
+cask "sketch"                 # Design tool
+
+# Media - Video & Audio
+cask "audacity"               # Audio editor
+cask "capcut"                 # Video editor
+cask "iina"                   # Modern media player
+cask "spotify"                # Music streaming
+cask "vlc"                    # Media player
+
+# Reading & Reference
+cask "anki"                   # Flashcard app
+cask "calibre"                # E-book management
+
+# Security & Privacy
+cask "burp-suite-professional" # Security testing (if you have license)
+cask "cloudflare-warp"        # Cloudflare VPN
+cask "mullvad-vpn"            # Privacy VPN
+cask "proton-mail"            # Proton Mail Bridge
+cask "protonvpn"              # ProtonVPN
+cask "wireshark"              # Network analyzer
+
+# Microsoft Office
+cask "microsoft-excel"        # Excel
+cask "microsoft-outlook"      # Outlook
+cask "microsoft-powerpoint"   # PowerPoint
+cask "microsoft-teams"        # Teams
+cask "microsoft-word"         # Word
+
+# File Management
+cask "linearmouse"            # Mouse customization
+cask "qbittorrent"            # Torrent client
+
+# Virtualization
+cask "virtualbox"             # Virtual machines
+
+# Gaming
+cask "steam"                  # Gaming platform
+
+# Fonts
+cask "font-fira-code-nerd-font"
+cask "font-hack-nerd-font"
+cask "font-jetbrains-mono-nerd-font"
+cask "font-meslo-lg-nerd-font"
+
+# ============================================================================
+# Mac App Store Applications (requires mas CLI)
+# ============================================================================
+brew "mas"                    # Mac App Store CLI
+
+# Apple Apps (iWork Suite)
+mas "Keynote", id: 409183694           # Presentations
+mas "Numbers", id: 409203825           # Spreadsheets
+mas "Pages", id: 409201541             # Word processing
+
+# Apple Creative & Development
+mas "GarageBand", id: 682658836        # Music creation
+mas "iMovie", id: 408981434            # Video editing
+mas "Logic Pro", id: 634148309         # Professional music production
+mas "Swift Playgrounds", id: 1496833156 # Learn to code
+mas "Xcode", id: 497799835             # Development IDE
+
+# Utilities & Productivity
+mas "ColorSlurp", id: 1287239339       # Color picker
+mas "Gestimer", id: 6447125648         # Quick timers
+mas "WireGuard", id: 1451685025        # VPN
+
+# Media & Creative
+mas "Darkroom", id: 953286746          # Photo & video editor
+mas "Gifski", id: 1351639930           # GIF converter
+mas "Shazam", id: 897118787            # Music recognition
+
+# Travel & Lifestyle
+mas "Flighty", id: 1358823008          # Live flight tracker
+mas "Tripsy", id: 1429967544           # Travel planner
+
+# Health & Fitness
+mas "SmartGym", id: 922744883          # Gym workouts
+
+# Reading
+mas "Reeder", id: 6475002485           # RSS reader (or use 1529448980 for Reeder Classic)
+
+# Notes:
+# - Opal and Overcast were not found in Mac App Store (may be iOS-only or different names)
+# - You may already have some Apple apps pre-installed
+# - Logic Pro X requires a one-time purchase ($199.99)
