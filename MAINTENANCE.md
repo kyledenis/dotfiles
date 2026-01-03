@@ -1,12 +1,34 @@
 # Dotfiles Maintenance Guide
 
-How to keep your dotfiles and application list up-to-date without it becoming a time capsule.
+How to keep your declarative macOS configuration up-to-date and synchronized with your actual system.
 
 ## Philosophy
 
-Your dotfiles should be a **living document** that evolves with your workflow, not a snapshot from when you first set up your system. This guide helps you maintain that freshness.
+Your dotfiles should be a **living document** that evolves with your workflow, not a snapshot from when you first set up your system. With the new **declarative, smart-by-default** approach, maintaining your dotfiles is as simple as running `./bootstrap/bootstrap.sh` anytime you want to sync.
 
-## Quick Reference
+## 🚀 New: Declarative Workflow (Recommended)
+
+The easiest way to keep your dotfiles current:
+
+```bash
+# 1. Edit your Brewfile when you want to add/remove apps
+vim bootstrap/brewfile
+
+# 2. Apply changes (smart installer handles the rest)
+./bootstrap/bootstrap.sh
+
+# 3. Commit
+git commit -am "feat: add new apps"
+```
+
+**That's it!** The smart installer:
+- ✅ Detects what's already installed
+- ✅ Installs only missing packages
+- ✅ Completes in seconds
+
+## Quick Reference (Old Workflow)
+
+If you prefer the audit-based approach:
 
 ```bash
 # Check what's out of sync
@@ -76,7 +98,16 @@ git commit -m "Update: Add newly installed apps"
 git push
 ```
 
-Done! Your dotfiles are now current.
+### 5. Test Your Config (Optional but Recommended)
+
+```bash
+# Run bootstrap to verify everything works
+./bootstrap/bootstrap.sh
+
+# Should complete quickly and show "already installed" for everything
+```
+
+Done! Your dotfiles are now current and tested.
 
 ## Automated Options
 
@@ -172,7 +203,24 @@ launchctl load ~/Library/LaunchAgents/com.user.dotfiles-audit.plist
 
 ## Update Strategies
 
-### Strategy 1: Reactive (Minimal Effort)
+### Strategy 1: Declarative Sync (Recommended)
+
+**When**: Anytime you make changes to Brewfile
+**Effort**: Seconds
+**Good for**: Everyone using the new smart bootstrap
+
+```bash
+# Edit your Brewfile to add/remove apps
+vim bootstrap/brewfile
+
+# Apply changes (smart installer only touches what changed)
+./bootstrap/bootstrap.sh
+
+# Commit the changes
+git commit -am "feat: add new development tools"
+```
+
+### Strategy 2: Reactive (Minimal Effort)
 
 **When**: Monthly
 **Effort**: 10 minutes
@@ -182,10 +230,13 @@ launchctl load ~/Library/LaunchAgents/com.user.dotfiles-audit.plist
 # Once a month
 sync-apps --audit
 sync-apps --add
-git commit -am "Monthly update"
+git commit -am "chore: monthly app audit"
+
+# Test that everything still works
+./bootstrap/bootstrap.sh
 ```
 
-### Strategy 2: Proactive (Recommended)
+### Strategy 3: Proactive (Old School)
 
 **When**: After installing any new app
 **Effort**: 30 seconds per app
@@ -197,7 +248,7 @@ sync-apps --audit
 # See it show up, decide if you want to add it now or later
 ```
 
-### Strategy 3: Automated (Set It & Forget It)
+### Strategy 4: Automated (Set It & Forget It)
 
 **When**: Scheduled weekly
 **Effort**: Review notification

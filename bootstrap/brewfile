@@ -1,10 +1,7 @@
 # Brewfile for macOS setup
 # Usage: brew bundle --file=~/Documents/paras/04-system/dotfiles/bootstrap/brewfile
 
-# Taps
-tap "homebrew/bundle"
-tap "homebrew/cask-fonts"
-tap "homebrew/services"
+# Note: All homebrew/* taps are deprecated and integrated into core Homebrew
 
 # ============================================================================
 # CLI Tools & Utilities
@@ -40,8 +37,6 @@ brew "rclone"                 # Cloud storage sync
 # Text Processing
 brew "jq"                     # JSON processor
 brew "yq"                     # YAML processor
-brew "sed"                    # Stream editor
-brew "awk"                    # Text processing
 
 # Version Control
 brew "git"                    # Version control
@@ -50,12 +45,9 @@ brew "gh"                     # GitHub CLI
 brew "tig"                    # Text-mode interface for git
 
 # System Monitoring & Info
-brew "htop"                   # Interactive process viewer
-brew "btop"                   # Modern htop alternative
-brew "ncdu"                   # Disk usage analyzer
+brew "btop"                   # Modern process viewer
 brew "duf"                    # Disk usage/free utility
-brew "tldr"                   # Simplified man pages
-brew "neofetch"               # System information
+brew "fastfetch"              # System information (maintained neofetch replacement)
 
 # Network Tools
 brew "wget"                   # File retrieval
@@ -67,7 +59,7 @@ brew "speedtest-cli"          # Internet speed test
 
 # Compression & Archives
 brew "p7zip"                  # 7-Zip port
-brew "unrar"                  # RAR extraction
+brew "unar"                   # RAR/archive extraction
 brew "xz"                     # XZ compression
 
 # Security & Privacy
@@ -76,17 +68,12 @@ brew "openssh"                # SSH client
 brew "openssl"                # SSL/TLS toolkit
 brew "pinentry-mac"           # GPG pinentry for macOS
 
-# Password Management
-brew "pass"                   # Unix password manager
-brew "bitwarden-cli"          # Bitwarden CLI (backup to 1Password)
-
 # ============================================================================
 # Development Tools
 # ============================================================================
 
 # Programming Languages
-brew "python@3.12"            # Python 3.12
-brew "python@3.11"            # Python 3.11 (for compatibility)
+brew "python"                 # Python (latest)
 brew "node"                   # Node.js
 brew "go"                     # Go language
 brew "rust"                   # Rust language
@@ -112,7 +99,7 @@ brew "docker-compose"         # Multi-container Docker applications
 brew "kubectl"                # Kubernetes CLI
 brew "terraform"              # Infrastructure as code
 brew "ansible"                # Configuration management
-brew "aws-cli"                # AWS command line interface
+brew "awscli"                 # AWS command line interface
 
 # Code Quality
 brew "shellcheck"             # Shell script linter
@@ -137,7 +124,6 @@ brew "direnv"                 # Environment switcher
 # Text Editors & IDEs
 brew "vim"                    # Vi improved
 brew "neovim"                 # Hyperextensible Vim-based text editor
-brew "nano"                   # Simple text editor
 
 # Media & File Handling
 brew "ffmpeg"                 # Video/audio processing
@@ -147,7 +133,6 @@ brew "exiftool"               # Read/write meta information
 # Misc Utilities
 brew "stow"                   # Symlink farm manager (dotfiles)
 brew "tmux"                   # Terminal multiplexer
-brew "screen"                 # Terminal multiplexer alternative
 brew "watch"                  # Execute program periodically
 
 # ============================================================================
@@ -180,7 +165,6 @@ cask "ollama"                 # Run LLMs locally
 
 # Communication
 cask "discord"                # Community chat
-cask "microsoft-teams"        # Team collaboration
 cask "signal"                 # Secure messaging
 cask "whatsapp"               # WhatsApp desktop
 

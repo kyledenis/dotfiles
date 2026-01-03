@@ -2,6 +2,15 @@
 
 Cheatsheet for all available commands, aliases, and keybindings.
 
+## Bootstrap & System Sync
+
+```bash
+./bootstrap/bootstrap.sh          # Sync system to config (smart, fast)
+./bootstrap/bootstrap.sh --force  # Force reinstall everything
+./bootstrap/bootstrap.sh --help   # See all options
+./bootstrap/brew-install-smart.sh # Smart package installer only
+```
+
 ## Shell Aliases
 
 | Alias | Command |

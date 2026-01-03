@@ -880,9 +880,12 @@ print_success "Disabled recent apps in Dock"
 #   false = Don't send (macOS default)
 #
 # Note: Many websites ignore this header
+# Note: Safari is sandboxed on modern macOS - preferences must be set manually
+#       through Safari > Settings (cannot use defaults write)
 
-defaults write com.apple.Safari SendDoNotTrackHTTPHeader -bool true
-print_success "Enabled Do Not Track"
+# defaults write com.apple.Safari SendDoNotTrackHTTPHeader -bool true
+# print_success "Enabled Do Not Track"
+print_info "Safari preferences must be configured manually (sandboxed app)"
 
 ################################################################################
 # TERMINAL: ENCODING                                                  [DEFAULT]

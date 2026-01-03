@@ -3,13 +3,17 @@
 ################################################################################
 # bootstrap.sh - macOS Setup Script
 #
-# This script automates the setup of a new macOS machine with:
-# - Homebrew package installation
+# Declarative macOS configuration inspired by NixOS.
+# Run anytime to converge your system to the desired state.
+#
+# Features:
+# - Homebrew package installation (smart detection by default)
 # - Dotfile deployment via GNU Stow
 # - macOS system preferences
 # - Development environment configuration
 #
 # Usage: ./bootstrap.sh [options]
+#   --force            Force reinstall all packages (skip smart detection)
 #   --skip-homebrew    Skip Homebrew installation and package installation
 #   --skip-dotfiles    Skip dotfile deployment
 #   --skip-macos       Skip macOS defaults configuration
@@ -31,6 +35,7 @@ DOTFILES_DIR="$(dirname "$SCRIPT_DIR")"
 STOW_DIR="$DOTFILES_DIR/stow"
 
 # Options
+FORCE_REINSTALL=false
 SKIP_HOMEBREW=false
 SKIP_DOTFILES=false
 SKIP_MACOS=false
@@ -79,6 +84,10 @@ confirm() {
 
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --force)
+            FORCE_REINSTALL=true
+            shift
+            ;;
         --skip-homebrew)
             SKIP_HOMEBREW=true
             shift
@@ -93,10 +102,20 @@ while [[ $# -gt 0 ]]; do
             ;;
         --help)
             echo "Usage: ./bootstrap.sh [options]"
+            echo ""
+            echo "Declarative macOS configuration - run anytime to sync your system."
+            echo ""
+            echo "Options:"
+            echo "  --force            Force reinstall all packages (skip smart detection)"
             echo "  --skip-homebrew    Skip Homebrew installation and package installation"
             echo "  --skip-dotfiles    Skip dotfile deployment"
             echo "  --skip-macos       Skip macOS defaults configuration"
             echo "  --help             Display this help message"
+            echo ""
+            echo "Examples:"
+            echo "  ./bootstrap.sh                    # Smart install (default)"
+            echo "  ./bootstrap.sh --force            # Reinstall everything"
+            echo "  ./bootstrap.sh --skip-macos       # Skip macOS preferences"
             exit 0
             ;;
         *)
@@ -148,9 +167,24 @@ if [ "$SKIP_HOMEBREW" = false ]; then
 
     # Install packages from Brewfile
     if [ -f "$SCRIPT_DIR/brewfile" ]; then
-        print_info "Installing packages from Brewfile..."
-        brew bundle --file="$SCRIPT_DIR/brewfile" --no-lock
-        print_success "Packages installed"
+        if [ "$FORCE_REINSTALL" = true ]; then
+            print_info "Force mode: Reinstalling ALL packages from Brewfile..."
+            print_warning "This will take 20-40 minutes and may reinstall existing apps"
+            brew bundle --file="$SCRIPT_DIR/brewfile" --verbose
+            print_success "All packages reinstalled"
+        else
+            print_info "Smart mode: Detecting and installing only missing packages..."
+            print_info "(Use --force to reinstall everything)"
+
+            if [ -f "$SCRIPT_DIR/brew-install-smart.sh" ]; then
+                bash "$SCRIPT_DIR/brew-install-smart.sh"
+                print_success "Package installation complete"
+            else
+                print_warning "brew-install-smart.sh not found, falling back to brew bundle"
+                brew bundle --file="$SCRIPT_DIR/brewfile" --verbose
+                print_success "Packages installed"
+            fi
+        fi
     else
         print_warning "Brewfile not found at $SCRIPT_DIR/brewfile"
     fi
