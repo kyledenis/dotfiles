@@ -30,9 +30,10 @@ PLIST_DST="$HOME/Library/LaunchAgents/$PLIST_NAME"
 STATE_DIR="$HOME/.local/state/dotfiles"
 LOG_FILE="$STATE_DIR/auto-adopt.log"
 
-# Runtime script location (outside protected Documents folder)
+# Runtime locations (outside protected Documents folder)
 RUNTIME_DIR="$HOME/.local/bin"
 RUNTIME_SCRIPT="$RUNTIME_DIR/dotfiles-auto-adopt"
+RUNTIME_DATA_DIR="$HOME/.local/share/dotfiles-auto-adopt"
 
 print_success() {
     echo -e "${GREEN}✓${NC} $1"
@@ -59,11 +60,16 @@ install_daemon() {
     mkdir -p "$HOME/Library/LaunchAgents"
     mkdir -p "$STATE_DIR"
     mkdir -p "$RUNTIME_DIR"
+    mkdir -p "$RUNTIME_DATA_DIR/patterns"
 
-    # Copy the auto-adopt script to a non-protected location
+    # Copy the auto-adopt script and patterns to non-protected locations
     # (macOS restricts launchd access to ~/Documents)
     cp "$SCRIPT_DIR/auto-adopt.sh" "$RUNTIME_SCRIPT"
     chmod +x "$RUNTIME_SCRIPT"
+
+    # Copy pattern files
+    cp -R "$SCRIPT_DIR/patterns/"* "$RUNTIME_DATA_DIR/patterns/"
+    print_success "Copied script and patterns to $RUNTIME_DATA_DIR"
 
     # Unload existing if present (ignore errors)
     launchctl unload "$PLIST_DST" 2>/dev/null || true
@@ -96,6 +102,8 @@ install_daemon() {
         <string>$HOME</string>
         <key>DOTFILES_DIR</key>
         <string>$DOTFILES_DIR</string>
+        <key>DOTFILES_RUNTIME_DIR</key>
+        <string>$RUNTIME_DATA_DIR</string>
     </dict>
 
     <key>StandardOutPath</key>
@@ -150,6 +158,12 @@ uninstall_daemon() {
     if [[ -f "$RUNTIME_SCRIPT" ]]; then
         rm -f "$RUNTIME_SCRIPT"
         print_success "Runtime script removed"
+    fi
+
+    # Remove runtime data
+    if [[ -d "$RUNTIME_DATA_DIR" ]]; then
+        rm -rf "$RUNTIME_DATA_DIR"
+        print_success "Runtime data removed"
     fi
 
     print_success "Auto-adopt daemon uninstalled"

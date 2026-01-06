@@ -24,7 +24,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Allow DOTFILES_DIR to be overridden by environment variable
 DOTFILES_DIR="${DOTFILES_DIR:-$(dirname "$SCRIPT_DIR")}"
 STOW_DIR="$DOTFILES_DIR/stow"
-PATTERNS_DIR="$DOTFILES_DIR/scripts/patterns"
+# Use runtime patterns dir if set (for launchd), otherwise use dotfiles location
+PATTERNS_DIR="${DOTFILES_RUNTIME_DIR:-$DOTFILES_DIR/scripts}/patterns"
 
 STATE_DIR="$HOME/.local/state/dotfiles"
 LOG_FILE="$STATE_DIR/auto-adopt.log"
