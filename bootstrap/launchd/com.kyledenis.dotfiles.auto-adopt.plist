@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Unique identifier for this launch agent -->
+    <key>Label</key>
+    <string>com.kyledenis.dotfiles.auto-adopt</string>
+
+    <!-- The script to execute -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/kyledenis/Documents/paras/04-system/dotfiles/scripts/auto-adopt.sh</string>
+    </array>
+
+    <!-- Run every 4 hours (14400 seconds) -->
+    <key>StartInterval</key>
+    <integer>14400</integer>
+
+    <!-- Also run immediately when loaded (e.g., on login) -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Environment variables -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin</string>
+        <key>HOME</key>
+        <string>/Users/kyledenis</string>
+    </dict>
+
+    <!-- Log output for debugging -->
+    <key>StandardOutPath</key>
+    <string>/tmp/dotfiles-auto-adopt-stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/dotfiles-auto-adopt-stderr.log</string>
+
+    <!-- Low priority - don't interfere with user work -->
+    <key>LowPriorityIO</key>
+    <true/>
+    <key>ProcessType</key>
+    <string>Background</string>
+
+    <!-- Nice level (lower priority) -->
+    <key>Nice</key>
+    <integer>10</integer>
+</dict>
+</plist>

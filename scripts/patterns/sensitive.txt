@@ -1,0 +1,122 @@
+# Patterns for SENSITIVE files (never adopt, log warning)
+# These contain credentials, tokens, or private keys
+#
+# Format: One pattern per line, supports shell glob patterns
+# Lines starting with # are comments
+
+# ============================================================================
+# SSH keys and sensitive SSH data
+# ============================================================================
+.ssh/id_*
+.ssh/*_rsa
+.ssh/*_dsa
+.ssh/*_ecdsa
+.ssh/*_ed25519
+.ssh/known_hosts
+.ssh/authorized_keys
+
+# ============================================================================
+# GPG/PGP private keys
+# ============================================================================
+.gnupg/private-keys*
+.gnupg/secring*
+.gnupg/trustdb*
+.gnupg/random_seed
+
+# ============================================================================
+# Cloud provider credentials
+# ============================================================================
+.aws/credentials
+.aws/config
+.azure
+.azure/*
+.config/gcloud
+.config/gcloud/*
+
+# ============================================================================
+# Kubernetes and container orchestration
+# ============================================================================
+.kube/config
+.kube/cache
+.kube/cache/*
+.minikube
+.minikube/*
+
+# ============================================================================
+# Infrastructure as code
+# ============================================================================
+.terraform.d/credentials*
+.terraformrc
+
+# ============================================================================
+# Package manager auth (may contain tokens)
+# ============================================================================
+.netrc
+.npmrc
+.yarnrc
+.pypirc
+.gem/credentials
+
+# ============================================================================
+# Database credentials
+# ============================================================================
+.pgpass
+.my.cnf
+.mycli-history
+.mongoshrc.js
+
+# ============================================================================
+# CLI tool auth tokens (ephemeral, re-authenticate)
+# ============================================================================
+.mcp-auth
+.mcp-auth/*
+.railway
+.railway/*
+.vercel
+.vercel/*
+.netlify
+.netlify/*
+.heroku
+.heroku/*
+.fly
+.fly/*
+.supabase
+.supabase/*
+.planetscale
+.planetscale/*
+.turso
+.turso/*
+
+# ============================================================================
+# GitHub/Git auth
+# ============================================================================
+.config/gh
+.config/gh/*
+.config/hub
+.gitcredentials
+
+# ============================================================================
+# Generic sensitive patterns (filename contains)
+# ============================================================================
+*token*
+*credential*
+*secret*
+*password*
+*.pem
+*.key
+*.p12
+*.pfx
+
+# ============================================================================
+# Environment files (often contain secrets)
+# ============================================================================
+.env
+.env.*
+*.env
+.envrc
+
+# ============================================================================
+# Claude and AI tool auth
+# ============================================================================
+.claude.json
+.claude.json.backup

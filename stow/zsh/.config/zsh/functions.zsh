@@ -448,6 +448,95 @@ notify() {
 # Dotfiles Functions
 # ============================================================================
 
+# Unified dotfiles command
+dotfiles() {
+    local cmd="${1:-help}"
+    shift 2>/dev/null || true
+
+    case "$cmd" in
+        # Auto-adopt commands
+        status)
+            "$SYSTEM_DIR/dotfiles/scripts/setup-auto-adopt.sh" status
+            ;;
+        log)
+            local lines="${1:-20}"
+            local log_file="$HOME/.local/state/dotfiles/auto-adopt.log"
+            if [[ -f "$log_file" ]]; then
+                tail -n "$lines" "$log_file"
+            else
+                echo "No log file yet. Run 'dotfiles run-now' to create one."
+            fi
+            ;;
+        run-now)
+            echo "Running auto-adopt manually..."
+            "$SYSTEM_DIR/dotfiles/scripts/auto-adopt.sh"
+            echo ""
+            echo "Done. Check 'dotfiles log' for results."
+            ;;
+        dry-run)
+            echo "Preview of what would be adopted:"
+            "$SYSTEM_DIR/dotfiles/scripts/auto-adopt.sh" --dry-run
+            ;;
+        # Daemon management
+        install)
+            "$SYSTEM_DIR/dotfiles/scripts/setup-auto-adopt.sh" install
+            ;;
+        uninstall)
+            "$SYSTEM_DIR/dotfiles/scripts/setup-auto-adopt.sh" uninstall
+            ;;
+        # Existing commands
+        add)
+            dotfiles-add "$@"
+            ;;
+        update)
+            dotfiles-update "$@"
+            ;;
+        st)
+            dotfiles-status "$@"
+            ;;
+        commit)
+            dotfiles-commit "$@"
+            ;;
+        audit)
+            dotfiles-audit "$@"
+            ;;
+        add-apps)
+            dotfiles-add-apps "$@"
+            ;;
+        brew-update)
+            dotfiles-brew-update "$@"
+            ;;
+        export)
+            dotfiles-export "$@"
+            ;;
+        sync)
+            dotfiles-sync "$@"
+            ;;
+        help|--help|-h|*)
+            echo "dotfiles - Unified dotfiles management"
+            echo ""
+            echo "Auto-adopt (background daemon):"
+            echo "  status      Check if daemon is running"
+            echo "  log [n]     Show last n log entries (default 20)"
+            echo "  run-now     Manually trigger auto-adopt"
+            echo "  dry-run     Preview what would be adopted"
+            echo "  install     Install the auto-adopt daemon"
+            echo "  uninstall   Remove the auto-adopt daemon"
+            echo ""
+            echo "Manual management:"
+            echo "  add         Add a file to stow management"
+            echo "  update      Pull latest and re-stow"
+            echo "  st          Show git status"
+            echo "  commit      Commit dotfiles changes"
+            echo ""
+            echo "App sync:"
+            echo "  audit       Compare installed apps vs Brewfile"
+            echo "  add-apps    Add new apps to Brewfile"
+            echo "  sync        Full sync workflow"
+            ;;
+    esac
+}
+
 # Add a new file to stow-managed dotfiles
 dotfiles-add() {
     if [ -z "$1" ]; then
@@ -558,6 +647,14 @@ dotfiles-sync() {
     fi
 
     cd - > /dev/null || return
+}
+
+# Quick Reference
+# ============================================================================
+
+# Show dotfiles quick reference
+rogue() {
+    "$SYSTEM_DIR/dotfiles/scripts/rogue.sh" "$@"
 }
 
 # macOS Specific Functions

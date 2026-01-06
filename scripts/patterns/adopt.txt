@@ -1,0 +1,97 @@
+# Patterns for files to AUTO-ADOPT
+# These are configuration files worth preserving
+#
+# Format: One pattern per line, supports shell glob patterns
+# Lines starting with # are comments
+# Pattern → package mapping uses : separator (optional)
+
+# ============================================================================
+# XDG config directories (default: use directory name as package)
+# ============================================================================
+.config/*
+
+# ============================================================================
+# Shell configuration
+# ============================================================================
+.zshrc:zsh
+.zshenv:zsh
+.zlogin:zsh
+.zlogout:zsh
+.bashrc:bash
+.bash_profile:bash
+.bash_login:bash
+.bash_logout:bash
+.profile:shell
+.inputrc:readline
+.p10k.zsh:zsh
+
+# ============================================================================
+# Git configuration
+# ============================================================================
+.gitconfig:git
+.gitconfig.local:git
+.gitignore_global:git
+.gitmessage:git
+
+# ============================================================================
+# Editor configuration
+# ============================================================================
+.vimrc:vim
+.gvimrc:vim
+.exrc:vim
+.editorconfig:editorconfig
+.nanorc:nano
+
+# ============================================================================
+# Terminal multiplexers
+# ============================================================================
+.tmux.conf:tmux
+.tmux.conf.local:tmux
+.screenrc:screen
+
+# ============================================================================
+# Generic config file patterns
+# ============================================================================
+.*rc
+.*config
+.*.conf
+.*.toml
+.*.yaml
+.*.yml
+.*.json
+
+# ============================================================================
+# Tool-specific dotfiles
+# ============================================================================
+.wgetrc:wget
+.curlrc:curl
+.ripgreprc:ripgrep
+.fdignore:fd
+.ignore:ignore
+.agignore:ag
+.ackrc:ack
+.ctags:ctags
+.prettierrc:prettier
+.eslintrc:eslint
+.stylelintrc:stylelint
+
+# ============================================================================
+# Application config (worth tracking)
+# ============================================================================
+.config/starship.toml:starship
+.config/atuin:atuin
+.config/nvim:nvim
+.config/bat:bat
+.config/lazygit:lazygit
+.config/htop:htop
+.config/btop:btop
+.config/alacritty:alacritty
+.config/kitty:kitty
+.config/wezterm:wezterm
+.config/zellij:zellij
+.config/helix:helix
+.config/karabiner:karabiner
+.config/aerospace:aerospace
+.config/yabai:yabai
+.config/skhd:skhd
+.config/borders:borders

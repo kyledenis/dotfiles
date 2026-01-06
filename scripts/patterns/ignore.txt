@@ -1,0 +1,231 @@
+# Patterns for dotfiles to IGNORE (never adopt)
+# These are caches, histories, and regeneratable state
+#
+# Format: One pattern per line, supports shell glob patterns
+# Lines starting with # are comments
+
+# ============================================================================
+# Container directories (never adopt the parent, only children)
+# ============================================================================
+.config
+.local
+
+# ============================================================================
+# Shell histories and sessions
+# ============================================================================
+.zsh_history
+.bash_history
+.sh_history
+.zsh_sessions
+.zsh_sessions/*
+.zcompcache
+.zcompcache/*
+.zcompdump*
+.zprofile
+
+# ============================================================================
+# Application histories
+# ============================================================================
+.lesshst
+.viminfo
+.python_history
+.node_repl_history
+.sqlite_history
+.mysql_history
+.psql_history
+.rediscli_history
+.irb_history
+.pry_history
+
+# ============================================================================
+# Caches
+# ============================================================================
+.cache
+.cache/*
+*/Cache
+*/Cache/*
+*/CachedData
+*/CachedData/*
+*/GPUCache
+*/GPUCache/*
+*/blob_storage
+*/blob_storage/*
+*/Local Storage
+*/Local Storage/*
+*/Service Worker
+*/Service Worker/*
+
+# ============================================================================
+# Package manager state (regenerated from lockfiles)
+# ============================================================================
+.npm
+.npm/*
+.yarn
+.yarn/*
+.pnpm
+.pnpm/*
+.bun
+.bun/*
+.nvm
+.nvm/*
+
+.cargo
+.cargo/*
+.rustup
+.rustup/*
+
+.gem
+.gem/*
+.rbenv
+.rbenv/*
+.rvm
+.rvm/*
+
+.gradle
+.gradle/*
+.m2
+.m2/*
+.sbt
+.sbt/*
+.ivy2
+.ivy2/*
+.coursier
+.coursier/*
+
+.pyenv
+.pyenv/*
+.conda
+.conda/*
+.miniconda
+.miniconda/*
+.anaconda
+.anaconda/*
+
+.go
+.go/*
+
+# ============================================================================
+# Virtual environments
+# ============================================================================
+.venv
+.venv/*
+.virtualenvs
+.virtualenvs/*
+
+# ============================================================================
+# Runtime state directories
+# ============================================================================
+.docker
+.docker/*
+.colima
+.colima/*
+.lima
+.lima/*
+.orbstack
+.orbstack/*
+
+# ============================================================================
+# macOS system files
+# ============================================================================
+.DS_Store
+.CFUserTextEncoding
+.Trash
+.Trash/*
+.localized
+.TemporaryItems
+.TemporaryItems/*
+.Spotlight-V100
+.Spotlight-V100/*
+.fseventsd
+.fseventsd/*
+
+# ============================================================================
+# IDE/Editor state and workspace data
+# ============================================================================
+.vscode
+.vscode/*
+.vscode-server
+.vscode-server/*
+.cursor
+.cursor/*
+.idea
+.idea/*
+.eclipse
+.eclipse/*
+.sonarlint
+.sonarlint/*
+.pylint.d
+.pylint.d/*
+
+# ============================================================================
+# Local data and state (XDG compliant locations)
+# ============================================================================
+.local/share
+.local/share/*
+.local/state
+.local/state/*
+.local/bin
+.local/bin/*
+.local/lib
+.local/lib/*
+
+# ============================================================================
+# Backup directories (created by our own deploy.sh)
+# ============================================================================
+.dotfiles-backup-*
+
+# ============================================================================
+# Media and large data directories
+# ============================================================================
+.Calibre
+.Calibre/*
+Calibre Library
+Calibre Library/*
+
+# ============================================================================
+# Electron app data (usually not worth tracking)
+# ============================================================================
+.config/*/Dictionaries
+.config/*/Dictionaries/*
+.config/*/logs
+.config/*/logs/*
+
+# ============================================================================
+# Browser data (never track)
+# ============================================================================
+.config/google-chrome
+.config/google-chrome/*
+.config/chromium
+.config/chromium/*
+.config/BraveSoftware
+.config/BraveSoftware/*
+.mozilla
+.mozilla/*
+
+# ============================================================================
+# App-managed config (too complex or frequently changing)
+# ============================================================================
+.config/iterm2
+.config/iterm2/*
+.config/raycast
+.config/raycast/*
+.config/linearmouse
+.config/linearmouse/*
+.config/qBittorrent
+.config/qBittorrent/*
+.config/mpv
+.config/mpv/*
+
+# ============================================================================
+# 1Password (managed separately, has own sync)
+# ============================================================================
+.1password
+.1password/*
+
+# ============================================================================
+# Codex and AI tools (frequently changing, ephemeral)
+# ============================================================================
+.codex
+.codex/*
+.copilot
+.copilot/*
