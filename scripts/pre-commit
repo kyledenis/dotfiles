@@ -77,20 +77,28 @@ SHELL_SCRIPTS=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(sh
 if [ -n "$SHELL_SCRIPTS" ]; then
     for script in $SHELL_SCRIPTS; do
         if [ -f "$script" ]; then
-            # Check syntax
-            if bash -n "$script" 2>/dev/null; then
+            # Determine which shell to use for syntax check
+            syntax_checker="bash"
+            if [[ "$script" == *.zsh ]] || [[ "$script" == *"/zsh/"* ]]; then
+                syntax_checker="zsh"
+            fi
+
+            # Check syntax with appropriate shell
+            if $syntax_checker -n "$script" 2>/dev/null; then
                 echo -e "${GREEN}✓ $script${NC}"
             else
                 echo -e "${RED}✗ Syntax error in $script${NC}"
-                bash -n "$script"
+                $syntax_checker -n "$script"
                 FAILED=true
             fi
 
-            # Check if executable
-            if [ -x "$script" ]; then
-                echo -e "${GREEN}  ✓ Executable${NC}"
-            else
-                echo -e "${YELLOW}  ⚠ Not executable (consider: chmod +x $script)${NC}"
+            # Check if executable (skip for sourced files like functions.zsh)
+            if [[ "$script" == *.sh ]] || [[ "$script" == *.bash ]]; then
+                if [ -x "$script" ]; then
+                    echo -e "${GREEN}  ✓ Executable${NC}"
+                else
+                    echo -e "${YELLOW}  ⚠ Not executable (consider: chmod +x $script)${NC}"
+                fi
             fi
         fi
     done
