@@ -512,6 +512,13 @@ dotfiles() {
         sync)
             dotfiles-sync "$@"
             ;;
+        # SSH key management
+        ssh-create)
+            ssh-create "$@"
+            ;;
+        ssh-list)
+            ssh-list "$@"
+            ;;
         help|--help|-h|*)
             echo "dotfiles - Unified dotfiles management"
             echo ""
@@ -533,6 +540,10 @@ dotfiles() {
             echo "  audit       Compare installed apps vs Brewfile"
             echo "  add-apps    Add new apps to Brewfile"
             echo "  sync        Full sync workflow"
+            echo ""
+            echo "SSH keys:"
+            echo "  ssh-create  Create and register a new SSH key"
+            echo "  ssh-list    List all managed SSH keys"
             ;;
     esac
 }
@@ -655,6 +666,38 @@ dotfiles-sync() {
 # Show dotfiles quick reference
 rogue() {
     "$SYSTEM_DIR/dotfiles/scripts/rogue.sh" "$@"
+}
+
+# SSH Key Management
+# ============================================================================
+
+# Create a new SSH key and register it in the dotfiles system
+ssh-create() {
+    "$SYSTEM_DIR/dotfiles/scripts/ssh-create.sh" "$@"
+}
+
+# List all managed SSH keys with their host mappings
+ssh-list() {
+    local keys_dir="$HOME/.ssh/keys"
+    local config_file="$HOME/.ssh/config"
+
+    if [[ ! -d "$keys_dir" ]]; then
+        echo "No keys directory found at $keys_dir"
+        return 1
+    fi
+
+    echo "Managed SSH keys:"
+    echo ""
+    for pub in "$keys_dir"/*.pub; do
+        [[ -f "$pub" ]] || continue
+        local name=$(basename "$pub" .pub)
+        local hostname=""
+        if [[ -f "$config_file" ]]; then
+            hostname=$(awk "/^Host ${name}\$/{found=1} found && /HostName/{print \$2; exit}" "$config_file")
+        fi
+        printf "  %-25s → %s\n" "$name" "${hostname:-<no config entry>}"
+    done
+    echo ""
 }
 
 # macOS Specific Functions

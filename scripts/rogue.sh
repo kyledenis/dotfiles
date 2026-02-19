@@ -146,6 +146,15 @@ show_scripts() {
     echo ""
 }
 
+show_ssh() {
+    print_section "SSH Keys"
+    print_cmd "ssh-create <name>" "Create and register a new SSH key"
+    print_cmd "ssh-list" "List managed keys with host mappings"
+    print_cmd "dotfiles ssh-create" "Same, via dotfiles command"
+    print_cmd "dotfiles ssh-list" "Same, via dotfiles command"
+    echo ""
+}
+
 show_all() {
     print_header "ROGUE - Dotfiles Quick Reference"
 
@@ -161,6 +170,7 @@ show_all() {
     show_system
     show_productivity
     show_scripts
+    show_ssh
 
     echo -e "  ${DIM}${H_LINE}${H_LINE}${H_LINE}${NC}"
     echo -e "  ${DIM}Dotfiles: ~/Documents/paras/04-system/dotfiles${NC}"
@@ -180,6 +190,7 @@ show_help() {
     echo "  system      System utilities"
     echo "  prod        Productivity tools"
     echo "  scripts     Available dotfiles scripts"
+    echo "  ssh         SSH key management"
     echo ""
     echo "Examples:"
     echo "  rogue           Show all commands"
@@ -220,6 +231,10 @@ case "${1:-all}" in
     scripts|sc)
         print_header "Dotfiles Scripts"
         show_scripts
+        ;;
+    ssh)
+        print_header "SSH Keys"
+        show_ssh
         ;;
     all)
         show_all
