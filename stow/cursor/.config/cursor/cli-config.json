@@ -1,0 +1,48 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(ls)"
+    ],
+    "deny": []
+  },
+  "version": 1,
+  "editor": {
+    "vimMode": false
+  },
+  "hasChangedDefaultModel": false,
+  "privacyCache": {
+    "ghostMode": true,
+    "privacyMode": 2,
+    "updatedAt": 1771043595639
+  },
+  "authInfo": {
+    "email": "signup+cursor@kyleden.is",
+    "displayName": "Tyler A",
+    "userId": 148322766,
+    "authId": "auth0|user_01JD9G35SBYWDCNK0XRWTAFHZP"
+  },
+  "network": {
+    "useHttp1ForAgent": false
+  },
+  "approvalMode": "allowlist",
+  "sandbox": {
+    "mode": "disabled",
+    "networkAccess": "user_config_with_defaults"
+  },
+  "attribution": {
+    "attributeCommitsToAgent": true,
+    "attributePRsToAgent": true
+  },
+  "model": {
+    "modelId": "claude-4.6-opus-high-thinking",
+    "displayModelId": "opus-4.6-thinking",
+    "displayName": "Claude 4.6 Opus (Thinking)",
+    "displayNameShort": "Opus 4.6 (Thinking)",
+    "aliases": [
+      "opus-4.6-thinking",
+      "claude-4.6-opus-thinking"
+    ],
+    "maxMode": false
+  },
+  "maxMode": false
+}
