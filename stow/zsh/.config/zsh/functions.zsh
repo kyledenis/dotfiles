@@ -519,6 +519,13 @@ dotfiles() {
         ssh-list)
             ssh-list "$@"
             ;;
+        # AI skills management
+        skills-create)
+            skills-create "$@"
+            ;;
+        skills-sync)
+            skills-sync "$@"
+            ;;
         help|--help|-h|*)
             echo "dotfiles - Unified dotfiles management"
             echo ""
@@ -544,6 +551,10 @@ dotfiles() {
             echo "SSH keys:"
             echo "  ssh-create  Create and register a new SSH key"
             echo "  ssh-list    List all managed SSH keys"
+            echo ""
+            echo "AI skills:"
+            echo "  skills-create  Create a new AI agent skill"
+            echo "  skills-sync    Sync skills to all AI tools"
             ;;
     esac
 }
@@ -698,6 +709,19 @@ ssh-list() {
         printf "  %-25s → %s\n" "$name" "${hostname:-<no config entry>}"
     done
     echo ""
+}
+
+# AI Skills Management
+# ============================================================================
+
+# Create a new AI agent skill
+skills-create() {
+    "$SYSTEM_DIR/dotfiles/scripts/skills-create.sh" "$@"
+}
+
+# Sync skills to all AI tools
+skills-sync() {
+    "$SYSTEM_DIR/dotfiles/scripts/skills-sync.sh" "$@"
 }
 
 # macOS Specific Functions

@@ -288,6 +288,25 @@ fi
 cd - > /dev/null
 
 ################################################################################
+# Skills Sync
+################################################################################
+
+if [ "$DELETE" = false ]; then
+    if [ -d "$HOME/.skills" ]; then
+        print_header "Syncing Skills"
+
+        SYNC_ARGS=()
+        if [ "$DRY_RUN" = true ]; then
+            SYNC_ARGS+=(--dry-run)
+        fi
+
+        "$SCRIPT_DIR/skills-sync.sh" "${SYNC_ARGS[@]}" || print_warning "Skills sync encountered issues"
+    else
+        print_info "Skills directory not found (~/.skills) — skipping skills sync"
+    fi
+fi
+
+################################################################################
 # Verification
 ################################################################################
 
@@ -329,6 +348,15 @@ if [ "$DRY_RUN" = false ] && [ "$DELETE" = false ]; then
                 else
                     print_error "nvim: init.lua is not symlinked"
                     VERIFIED=false
+                fi
+                ;;
+            claude)
+                if [ -f "$HOME/.claude/skills/.skills-sync.json" ]; then
+                    print_success "claude: skills synced"
+                elif [ -L "$HOME/.claude/CLAUDE.md" ]; then
+                    print_success "claude: CLAUDE.md is symlinked"
+                else
+                    print_info "claude: Skipping verification"
                 fi
                 ;;
             *)

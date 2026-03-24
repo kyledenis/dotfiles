@@ -146,6 +146,17 @@ show_scripts() {
     echo ""
 }
 
+show_skills() {
+    print_section "AI Skills"
+    print_cmd "skills-create <name>" "Create a new AI agent skill"
+    print_cmd "skills-sync" "Sync skills to all AI tools"
+    print_cmd "skills-sync --list" "List all skills and their targets"
+    print_cmd "skills-sync --dry-run" "Preview sync without writing"
+    print_cmd "skills-sync --prune" "Remove orphaned skills from tools"
+    print_cmd "skills-sync --tool X" "Sync to specific tool (claude, cursor)"
+    echo ""
+}
+
 show_ssh() {
     print_section "SSH Keys"
     print_cmd "ssh-create <name>" "Create and register a new SSH key"
@@ -171,6 +182,7 @@ show_all() {
     show_productivity
     show_scripts
     show_ssh
+    show_skills
 
     echo -e "  ${DIM}${H_LINE}${H_LINE}${H_LINE}${NC}"
     echo -e "  ${DIM}Dotfiles: ~/Documents/paras/04-system/dotfiles${NC}"
@@ -191,6 +203,7 @@ show_help() {
     echo "  prod        Productivity tools"
     echo "  scripts     Available dotfiles scripts"
     echo "  ssh         SSH key management"
+    echo "  skills      AI skill management"
     echo ""
     echo "Examples:"
     echo "  rogue           Show all commands"
@@ -235,6 +248,10 @@ case "${1:-all}" in
     ssh)
         print_header "SSH Keys"
         show_ssh
+        ;;
+    skills|sk)
+        print_header "AI Skills"
+        show_skills
         ;;
     all)
         show_all
