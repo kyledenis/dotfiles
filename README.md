@@ -44,6 +44,27 @@ dotfiles add-apps           # Interactively add apps to Brewfile
 dotfiles sync               # Full sync: audit → add → commit
 ```
 
+### AI Skills Sync
+
+Distributes AI agent skills from a private canonical store (`~/.skills`) to each tool's expected directory with per-tool frontmatter transformation.
+
+```bash
+skills-create <name>       # Interactive skill scaffolding
+skills-sync                # Sync skills to all AI tools
+skills-sync --list         # List all skills and their targets
+skills-sync --dry-run      # Preview without writing
+skills-sync --prune        # Remove orphaned skills from tools
+```
+
+Skills are stored in a separate private repo (`~/.skills/`) and synced to `~/.claude/skills/` and `~/.cursor/skills/`. See [skills-sync.sh](scripts/skills-sync.sh) for details.
+
+### SSH Key Management
+
+```bash
+ssh-create <name>          # Create and register a new SSH key
+ssh-list                   # List managed keys with host mappings
+```
+
 ### Quick Reference
 
 ```bash
@@ -54,6 +75,8 @@ rogue git             # Git shortcuts
 rogue python          # Python helpers
 rogue network         # Network utilities
 rogue system          # System utilities
+rogue ssh             # SSH key management
+rogue skills          # AI skill management
 ```
 
 ## Shell Aliases
@@ -126,6 +149,9 @@ dotfiles/
 │   ├── deploy.sh              # Stow deployment
 │   ├── stow-add.sh            # Add files to stow
 │   ├── sync-apps.sh           # App audit/sync
+│   ├── ssh-create.sh          # SSH key creation + 1Password
+│   ├── skills-sync.sh         # AI skills distribution
+│   ├── skills-create.sh       # Interactive skill scaffolding
 │   ├── pre-commit             # Git hook
 │   └── patterns/              # Auto-adopt classification
 │
@@ -138,7 +164,8 @@ dotfiles/
 │   ├── ssh/                   # SSH with 1Password agent
 │   ├── starship/              # Prompt
 │   ├── atuin/                 # Shell history sync
-│   ├── claude/                # Claude AI config
+│   ├── claude/                # Claude AI config (skills synced from ~/.skills)
+│   ├── cursor/                # Cursor IDE rules (skills synced from ~/.skills)
 │   ├── onepassword/           # 1Password SSH agent
 │   ├── thefuck/               # Command correction
 │   └── opencode/              # OpenCode config
@@ -199,6 +226,7 @@ cd stow && stow zsh
 
 ## Requirements
 
-- macOS (Ventura/Sonoma)
+- macOS (Ventura/Sonoma/Sequoia)
 - Internet connection
 - Admin access
+- `yq` for skills sync (`brew install yq`)
