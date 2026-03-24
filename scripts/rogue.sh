@@ -81,6 +81,40 @@ show_navigation() {
     echo ""
 }
 
+show_paras_ref() {
+    print_section "PARAS Quick Reference"
+    echo -e "  ${DIM}What goes where — decision guide${NC}"
+    echo ""
+    printf "    ${GREEN}%-20s${NC} %s\n" "00-projects/" "Active work with a goal + deadline"
+    echo -e "    ${DIM}                     → Has a clear finish line${NC}"
+    echo -e "    ${DIM}                     → Needs multiple sessions${NC}"
+    echo -e "    ${DIM}                     → Archive when done or stale >3mo${NC}"
+    echo -e "    ${DIM}                     Review: weekly${NC}"
+    echo ""
+    printf "    ${GREEN}%-20s${NC} %s\n" "01-areas/" "Ongoing responsibilities, no end date"
+    echo -e "    ${DIM}                     → Standards to maintain (health, finances, career)${NC}"
+    echo -e "    ${DIM}                     → Part of your life roles${NC}"
+    echo -e "    ${DIM}                     → Never \"done\", only maintained${NC}"
+    echo -e "    ${DIM}                     Review: monthly${NC}"
+    echo ""
+    printf "    ${GREEN}%-20s${NC} %s\n" "02-resources/" "Reference material, not actionable now"
+    echo -e "    ${DIM}                     → Interesting info for future use${NC}"
+    echo -e "    ${DIM}                     → Not tied to a project or area${NC}"
+    echo -e "    ${DIM}                     → Organised by topic${NC}"
+    echo -e "    ${DIM}                     Review: quarterly${NC}"
+    echo ""
+    printf "    ${GREEN}%-20s${NC} %s\n" "03-archive/" "Inactive items from any category"
+    echo -e "    ${DIM}                     → Completed or abandoned projects${NC}"
+    echo -e "    ${DIM}                     → Areas/resources no longer relevant${NC}"
+    echo -e "    ${DIM}                     → Named: original-name-YYYYMMDD${NC}"
+    echo -e "    ${DIM}                     Review: annually${NC}"
+    echo ""
+    printf "    ${GREEN}%-20s${NC} %s\n" "04-system/" "System config and dotfiles"
+    echo -e "    ${DIM}                     → Dotfiles, scripts, bootstrap${NC}"
+    echo -e "    ${DIM}                     → Not user content${NC}"
+    echo ""
+}
+
 show_git() {
     print_section "Git Shortcuts"
     print_cmd "gst" "Git status (short format)"
@@ -175,6 +209,7 @@ show_all() {
 
     show_dotfiles
     show_navigation
+    show_paras_ref
     show_git
     show_python
     show_network
@@ -196,6 +231,7 @@ show_help() {
     echo "Categories:"
     echo "  dotfiles    Dotfiles management commands"
     echo "  nav         PARAS navigation shortcuts"
+    echo "  paras       PARAS methodology reference (what goes where)"
     echo "  git         Git shortcuts"
     echo "  python      Python virtual environment helpers"
     echo "  network     Network utilities"
@@ -217,9 +253,13 @@ case "${1:-all}" in
         print_header "Dotfiles Management"
         show_dotfiles
         ;;
-    nav|navigation|paras)
+    nav|navigation)
         print_header "PARAS Navigation"
         show_navigation
+        ;;
+    paras|paras-ref|para|ref)
+        print_header "PARAS Quick Reference"
+        show_paras_ref
         ;;
     git|g)
         print_header "Git Shortcuts"
