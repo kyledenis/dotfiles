@@ -1,0 +1,54 @@
+# Stanza Dark
+# A terminal palette drawn from Raphael's School of Athens (1509–1511)
+# Stanza della Segnatura, Apostolic Palace, Vatican City
+#
+# Warm architectural shadows for the base, parchment marble for text,
+# and the robes of the philosophers for the accent colours.
+
+# Base
+background = #1C1916
+foreground = #D5C9B5
+
+# Cursor
+cursor-color = #C89B3C
+cursor-text = #1C1916
+
+# Selection
+selection-background = #3E362C
+selection-foreground = #E8DCCA
+
+# Normal colours
+# 0: black   — deep archway shadow
+palette = 0=#2E2822
+# 1: red     — terracotta robes (Pythagoras' drapery)
+palette = 1=#C4623A
+# 2: green   — olive-sage robes (background philosophers)
+palette = 2=#7E8E5E
+# 3: yellow  — golden ochre (Aristotle's saffron robe)
+palette = 3=#C89B3C
+# 4: blue    — muted cerulean (Plato's blue robe)
+palette = 4=#6A8AAE
+# 5: magenta — warm sienna rose (draped figure, lower right)
+palette = 5=#B07060
+# 6: cyan    — verdigris teal (architectural patina)
+palette = 6=#6E9E94
+# 7: white   — weathered marble
+palette = 7=#C4B8A2
+
+# Bright colours
+# 8: bright black  — upper column shadow
+palette = 8=#5C5448
+# 9: bright red    — sunlit terracotta
+palette = 9=#D8805A
+# 10: bright green — lit olive canopy
+palette = 10=#96AA74
+# 11: bright yellow — direct gold leaf
+palette = 11=#DDB856
+# 12: bright blue  — sky through the central arch
+palette = 12=#8AACC8
+# 13: bright magenta — warm fresco highlight
+palette = 13=#CC9480
+# 14: bright cyan  — bright patina
+palette = 14=#8EBCB2
+# 15: bright white — sunlit marble
+palette = 15=#E8DCCA

@@ -1,0 +1,54 @@
+# Stanza Light
+# A terminal palette drawn from Raphael's School of Athens (1509–1511)
+# Stanza della Segnatura, Apostolic Palace, Vatican City
+#
+# Sunlit marble and parchment for the base, deep architectural
+# shadow for text, the philosophers' robes for accents.
+
+# Base
+background = #EDE4D4
+foreground = #2E2822
+
+# Cursor
+cursor-color = #9E7520
+cursor-text = #EDE4D4
+
+# Selection
+selection-background = #D4C8AE
+selection-foreground = #2E2822
+
+# Normal colours
+# 0: black   — deep archway shadow
+palette = 0=#2E2822
+# 1: red     — terracotta robes, darkened for contrast
+palette = 1=#A84E28
+# 2: green   — deep olive-sage
+palette = 2=#5A6E3A
+# 3: yellow  — burnt ochre (readable on light bg)
+palette = 3=#8E6E18
+# 4: blue    — deeper cerulean
+palette = 4=#4A6E8E
+# 5: magenta — deep warm sienna
+palette = 5=#8E5040
+# 6: cyan    — deep verdigris
+palette = 6=#4A7E72
+# 7: white   — warm mid-grey stone
+palette = 7=#8E8478
+
+# Bright colours
+# 8: bright black  — column shadow
+palette = 8=#6E6458
+# 9: bright red    — warm terracotta
+palette = 9=#C4623A
+# 10: bright green — sage in light
+palette = 10=#6E8848
+# 11: bright yellow — gold leaf
+palette = 11=#A88420
+# 12: bright blue  — fresco blue
+palette = 12=#5E88AA
+# 13: bright magenta — lit sienna
+palette = 13=#AA6E58
+# 14: bright cyan  — bright patina
+palette = 14=#5E9488
+# 15: bright white — full marble
+palette = 15=#FAF4E8
