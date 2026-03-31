@@ -12,6 +12,7 @@
 #   skills-sync.sh --list           # Show skill registry
 #   skills-sync.sh --tool claude    # Sync to specific tool only
 #   skills-sync.sh --prune          # Remove orphaned skills from targets
+#   skills-sync.sh --import          # Import unmanaged skills from tools
 #   skills-sync.sh --verbose        # Detailed output
 ################################################################################
 
@@ -37,6 +38,7 @@ DRY_RUN=false
 PRUNE=false
 VERBOSE=false
 LIST_ONLY=false
+IMPORT_MODE=false
 TOOL_FILTER=""
 
 # Counters
@@ -110,6 +112,7 @@ Sync canonical skills from ~/.skills to AI tool directories.
 Options:
     --dry-run       Preview without writing any files
     --prune         Remove skills from targets that are no longer in canonical store
+    --import        Import unmanaged skills from tool directories into ~/.skills
     --tool NAME     Sync to a specific tool only (claude, cursor)
     --list          Show skill registry and exit
     --verbose       Show detailed sync operations
@@ -124,6 +127,8 @@ Examples:
     skills-sync.sh --list           # Show registry
     skills-sync.sh --tool claude    # Sync to Claude Code only
     skills-sync.sh --prune          # Clean up orphaned skills
+    skills-sync.sh --import         # Import unmanaged skills from tools
+    skills-sync.sh --import --dry-run  # Preview import without prompting
 
 EOF
 }
@@ -144,6 +149,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --verbose)
             VERBOSE=true
+            shift
+            ;;
+        --import)
+            IMPORT_MODE=true
             shift
             ;;
         --list)
@@ -363,10 +372,190 @@ if [ "$LIST_ONLY" = true ]; then
 fi
 
 ################################################################################
-# Sync Logic
+# Import Mode — Reverse sync from tool directories to canonical store
 ################################################################################
 
-echo -e "\n${BOLD}Skills Sync${NC}"
+if [ "$IMPORT_MODE" = true ]; then
+    echo -e "\n${BOLD}Import Preview${NC}\n"
+
+    # Collect import candidates: (tool, skill_name, skill_dir, description)
+    declare -a IMPORT_TOOLS=()
+    declare -a IMPORT_NAMES=()
+    declare -a IMPORT_DIRS=()
+    declare -a IMPORT_DESCS=()
+    IMPORT_COUNT=0
+    IMPORT_SKIP=0
+
+    for tool in "${TOOLS[@]}"; do
+        tool_dir="${TOOL_DEST[$tool]}"
+        [ -d "$tool_dir" ] || continue
+
+        # Read this tool's manifest
+        tool_manifest=$(read_manifest "$tool")
+
+        for candidate_dir in "$tool_dir"/*/; do
+            [ -d "$candidate_dir" ] || continue
+            candidate_name=$(basename "$candidate_dir")
+
+            # Skip manifest file directory (shouldn't happen, but be safe)
+            [ "$candidate_name" = ".skills-sync.json" ] && continue
+
+            # Skip if no SKILL.md
+            [ -f "$candidate_dir/SKILL.md" ] || continue
+
+            # Skip tool-bundled/reserved directories
+            case "$tool" in
+                cursor)
+                    # Cursor's built-in skills are in skills-cursor/, not skills/
+                    # But skip if somehow we're scanning the wrong dir
+                    ;;
+                codex)
+                    # Skip .system/ directory
+                    [ "$candidate_name" = ".system" ] && continue
+                    ;;
+            esac
+
+            # Skip if managed by skills-sync (in manifest)
+            managed_hash=$(manifest_hash "$tool_manifest" "$candidate_name")
+            if [ -n "$managed_hash" ]; then
+                print_verbose "Skipping $candidate_name from $tool (managed by sync)"
+                continue
+            fi
+
+            # Skip if already exists in canonical store (duplicate)
+            if [ -d "$SKILLS_DIR/$candidate_name" ]; then
+                printf "  ${DIM}From ${tool}:${NC}\n"
+                printf "    ${YELLOW}~${NC} %-24s ${DIM}SKIP (already in ~/.skills)${NC}\n" "$candidate_name"
+                IMPORT_SKIP=$((IMPORT_SKIP + 1))
+                continue
+            fi
+
+            # This is a genuine import candidate
+            desc=$(read_field "$candidate_dir/SKILL.md" "description" 2>/dev/null)
+            desc="${desc:0:60}"
+
+            IMPORT_TOOLS+=("$tool")
+            IMPORT_NAMES+=("$candidate_name")
+            IMPORT_DIRS+=("$candidate_dir")
+            IMPORT_DESCS+=("$desc")
+            IMPORT_COUNT=$((IMPORT_COUNT + 1))
+        done
+    done
+
+    # Display candidates grouped by tool
+    if [ "$IMPORT_COUNT" -gt 0 ]; then
+        current_tool=""
+        for i in $(seq 0 $((IMPORT_COUNT - 1))); do
+            if [ "${IMPORT_TOOLS[$i]}" != "$current_tool" ]; then
+                current_tool="${IMPORT_TOOLS[$i]}"
+                echo -e "  ${BOLD}From ${current_tool}:${NC}"
+            fi
+            printf "    ${GREEN}+${NC} %-24s ${DIM}\"%s\"${NC}\n" "${IMPORT_NAMES[$i]}" "${IMPORT_DESCS[$i]}"
+        done
+    fi
+
+    # Summary
+    echo ""
+    echo -e "${DIM}──────────────────────────────────${NC}"
+
+    if [ "$IMPORT_COUNT" -eq 0 ] && [ "$IMPORT_SKIP" -eq 0 ]; then
+        print_info "No unmanaged skills found in any tool directory"
+        exit 0
+    fi
+
+    parts=()
+    [ "$IMPORT_COUNT" -gt 0 ] && parts+=("${GREEN}$IMPORT_COUNT to import${NC}")
+    [ "$IMPORT_SKIP" -gt 0 ] && parts+=("${YELLOW}$IMPORT_SKIP skipped (duplicate)${NC}")
+    echo -e "  $(IFS='  |  '; echo "${parts[*]}")"
+    echo ""
+
+    if [ "$IMPORT_COUNT" -eq 0 ]; then
+        exit 0
+    fi
+
+    # Dry run stops here
+    if [ "$DRY_RUN" = true ]; then
+        print_info "Dry run — no changes made"
+        exit 0
+    fi
+
+    # Prompt for confirmation
+    read -p "  Import these to $SKILLS_DIR? (y/n) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        print_warning "Aborted"
+        exit 0
+    fi
+
+    # Execute import
+    echo ""
+    for i in $(seq 0 $((IMPORT_COUNT - 1))); do
+        src_dir="${IMPORT_DIRS[$i]}"
+        skill_name="${IMPORT_NAMES[$i]}"
+        dest_dir="$SKILLS_DIR/$skill_name"
+
+        # Copy entire skill directory
+        mkdir -p "$dest_dir"
+        cp -R "$src_dir"/* "$dest_dir/"
+
+        # Augment frontmatter with missing superset fields
+        skill_file="$dest_dir/SKILL.md"
+        fm=$(extract_frontmatter "$skill_file")
+
+        # Check which fields need adding
+        has_version=$(echo "$fm" | yq eval '.version // ""' - 2>/dev/null)
+        has_targets=$(echo "$fm" | yq eval '.targets // "" | length' - 2>/dev/null)
+        has_category=$(echo "$fm" | yq eval '.category // ""' - 2>/dev/null)
+
+        # Build augmented frontmatter
+        augmented="$fm"
+        if [ -z "$has_version" ]; then
+            augmented=$(echo "$augmented" | yq eval '. + {"version": "1.0"}' -)
+        fi
+        if [ "$has_targets" = "0" ] || [ -z "$has_targets" ]; then
+            # Default to all configured tools — build as proper YAML list
+            targets_yaml="["
+            first_t=true
+            for t in "${TOOLS[@]}"; do
+                if [ "$first_t" = true ]; then first_t=false; else targets_yaml+=", "; fi
+                targets_yaml+="\"$t\""
+            done
+            targets_yaml+="]"
+            augmented=$(echo "$augmented" | yq eval ".targets = $targets_yaml" -)
+        fi
+        if [ -z "$has_category" ]; then
+            augmented=$(echo "$augmented" | yq eval '. + {"category": "general"}' -)
+        fi
+
+        # Rewrite SKILL.md with augmented frontmatter + original body
+        {
+            echo "---"
+            echo "$augmented"
+            echo "---"
+            extract_body "$src_dir/SKILL.md"
+        } > "$skill_file"
+
+        print_success "$skill_name ${DIM}(from ${IMPORT_TOOLS[$i]})${NC}"
+    done
+
+    # Git stage if in a repo
+    if [ -d "$SKILLS_DIR/.git" ]; then
+        echo ""
+        print_info "Imported skills are unstaged. To commit:"
+        echo -e "  ${DIM}cd ~/.skills && git add -A && git commit -m 'feat: import skills from tools'${NC}"
+    fi
+
+    echo ""
+    print_info "Run ${BOLD}skills-sync${NC} to distribute imported skills to all tools"
+    echo ""
+    exit 0
+fi
+
+################################################################################
+# Forward Sync Logic
+################################################################################
+
+echo -e "\n${BOLD}Skills Sync${NC} ${DIM}(forward)${NC}"
 
 if [ "$DRY_RUN" = true ]; then
     print_warning "DRY RUN — no changes will be made"

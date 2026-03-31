@@ -188,6 +188,7 @@ show_skills() {
     print_cmd "skills-sync --dry-run" "Preview sync without writing"
     print_cmd "skills-sync --prune" "Remove orphaned skills from tools"
     print_cmd "skills-sync --tool X" "Sync to specific tool (claude, cursor)"
+    print_cmd "skills-sync --import" "Import unmanaged skills from tools"
     echo ""
 }
 
