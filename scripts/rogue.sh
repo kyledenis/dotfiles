@@ -60,6 +60,7 @@ show_dotfiles() {
     print_cmd "dotfiles dry-run" "Preview what would be adopted"
     print_cmd "dotfiles install" "Install the auto-adopt daemon"
     print_cmd "dotfiles uninstall" "Remove the auto-adopt daemon"
+    print_cmd "dotfiles review" "Review and commit pending changes"
     print_cmd "dotfiles add <file>" "Add file to stow management"
     print_cmd "dotfiles update" "Pull latest and re-stow"
     print_cmd "dotfiles st" "Show git status of dotfiles"
@@ -171,11 +172,12 @@ show_productivity() {
 
 show_scripts() {
     print_section "Dotfiles Scripts"
-    print_cmd "bootstrap.sh" "Full machine setup"
+    echo -e "  ${DIM}Run from: ~/Documents/paras/04-system/dotfiles/scripts/${NC}"
+    echo ""
     print_cmd "deploy.sh" "Deploy/update stow packages"
+    print_cmd "bootstrap.sh" "Full machine setup"
     print_cmd "sync-apps.sh" "Sync Brewfile with installed apps"
     print_cmd "stow-add.sh" "Interactive stow file addition"
-    print_cmd "auto-adopt.sh" "Auto-adopt daemon script"
     print_cmd "macos-defaults.sh" "Apply macOS preferences"
     echo ""
 }
@@ -208,17 +210,15 @@ show_all() {
     echo -e "  ${DIM}Run${NC} ${GREEN}rogue <category>${NC} ${DIM}for specific sections.${NC}"
     echo ""
 
-    show_dotfiles
-    show_navigation
-    show_paras_ref
     show_git
-    show_python
+    show_skills
+    show_ssh
     show_network
     show_system
+    show_dotfiles
+    show_navigation
+    show_python
     show_productivity
-    show_scripts
-    show_ssh
-    show_skills
 
     echo -e "  ${DIM}${H_LINE}${H_LINE}${H_LINE}${NC}"
     echo -e "  ${DIM}Dotfiles: ~/Documents/paras/04-system/dotfiles${NC}"
@@ -230,17 +230,17 @@ show_help() {
     echo "Usage: rogue [category]"
     echo ""
     echo "Categories:"
+    echo "  git         Git shortcuts"
+    echo "  skills      AI skill management"
+    echo "  ssh         SSH key management"
+    echo "  network     Network utilities"
+    echo "  system      System utilities"
     echo "  dotfiles    Dotfiles management commands"
     echo "  nav         PARAS navigation shortcuts"
     echo "  paras       PARAS methodology reference (what goes where)"
-    echo "  git         Git shortcuts"
     echo "  python      Python virtual environment helpers"
-    echo "  network     Network utilities"
-    echo "  system      System utilities"
     echo "  prod        Productivity tools"
-    echo "  scripts     Available dotfiles scripts"
-    echo "  ssh         SSH key management"
-    echo "  skills      AI skill management"
+    echo "  scripts     Dotfiles scripts (not shell commands)"
     echo ""
     echo "Examples:"
     echo "  rogue           Show all commands"

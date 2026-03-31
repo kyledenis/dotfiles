@@ -182,7 +182,11 @@ pip-save() {
 
 # Get external IP address
 myip() {
-    curl -s https://ifconfig.me
+    local v4 v6
+    v4=$(curl -4 -s --max-time 3 https://ifconfig.me 2>/dev/null)
+    v6=$(curl -6 -s --max-time 3 https://ifconfig.me 2>/dev/null)
+    [ -n "$v4" ] && echo "IPv4: $v4"
+    [ -n "$v6" ] && echo "IPv6: $v6"
 }
 
 # Get local IP address
@@ -519,6 +523,10 @@ dotfiles() {
         ssh-list)
             ssh-list "$@"
             ;;
+        # Review and commit adopted configs
+        review)
+            dotfiles-review "$@"
+            ;;
         # AI skills management
         skills-create)
             skills-create "$@"
@@ -538,6 +546,7 @@ dotfiles() {
             echo "  uninstall   Remove the auto-adopt daemon"
             echo ""
             echo "Manual management:"
+            echo "  review      Review and commit pending changes"
             echo "  add         Add a file to stow management"
             echo "  update      Pull latest and re-stow"
             echo "  st          Show git status"
@@ -572,6 +581,217 @@ dotfiles-add() {
     fi
 
     "$SYSTEM_DIR/dotfiles/scripts/stow-add.sh" "$@"
+}
+
+# Review and commit pending dotfiles changes
+dotfiles-review() {
+    local dotfiles_dir="$SYSTEM_DIR/dotfiles"
+    cd "$dotfiles_dir" || return
+
+    local RED='\033[0;31m'
+    local GREEN='\033[0;32m'
+    local YELLOW='\033[1;33m'
+    local BLUE='\033[0;34m'
+    local CYAN='\033[0;36m'
+    local BOLD='\033[1m'
+    local DIM='\033[2m'
+    local NC='\033[0m'
+
+    # Collect changes
+    local -a new_packages=()
+    local -a modified_files=()
+    local -a suspicious_files=()
+
+    # Find new packages (untracked dirs in stow/)
+    while IFS= read -r line; do
+        local dir="${line#\?\? }"
+        # Only top-level stow packages
+        if [[ "$dir" == stow/*/ ]]; then
+            local pkg="${dir#stow/}"
+            pkg="${pkg%/}"
+            new_packages+=("$pkg")
+        fi
+    done < <(git status --porcelain 2>/dev/null | grep '^?? stow/')
+
+    # Find modified tracked files
+    while IFS= read -r line; do
+        local status="${line:0:2}"
+        local file="${line:3}"
+        if [[ "$status" == " M" || "$status" == "M " || "$status" == "MM" ]]; then
+            modified_files+=("$file")
+        fi
+    done < <(git status --porcelain 2>/dev/null)
+
+    # Nothing pending?
+    if [[ ${#new_packages[@]} -eq 0 && ${#modified_files[@]} -eq 0 ]]; then
+        echo -e "${GREEN}✓${NC} Nothing to review — dotfiles are clean"
+        cd - > /dev/null || return
+        return 0
+    fi
+
+    # Header
+    echo ""
+    echo -e "${BOLD}Dotfiles Review${NC}"
+    echo ""
+
+    # Show new packages
+    if [[ ${#new_packages[@]} -gt 0 ]]; then
+        echo -e "  ${BOLD}New packages${NC} ${DIM}(adopted by auto-adopt, not yet committed)${NC}"
+        echo ""
+        for pkg in "${new_packages[@]}"; do
+            # Count files and total size
+            local file_count size_human
+            file_count=$(find "stow/$pkg" -type f 2>/dev/null | wc -l | tr -d ' ')
+            size_human=$(du -sh "stow/$pkg" 2>/dev/null | cut -f1 | tr -d ' ')
+
+            # Check for suspicious content
+            local warnings=""
+            # Large files (>1MB)
+            local large_files
+            large_files=$(find "stow/$pkg" -type f -size +1M 2>/dev/null | wc -l | tr -d ' ')
+            [[ "$large_files" -gt 0 ]] && warnings+=" ${YELLOW}[${large_files} large file(s)]${NC}"
+            # Binary files
+            local binary_files
+            binary_files=$(find "stow/$pkg" -type f -exec file {} \; 2>/dev/null | grep -c "binary\|executable\|data" || true)
+            [[ "$binary_files" -gt 0 ]] && warnings+=" ${YELLOW}[${binary_files} binary]${NC}"
+            # Potential secrets
+            local secret_hits
+            secret_hits=$(grep -rlE '(api[_-]?key|secret|token|password|private[_-]?key)\s*[:=]' "stow/$pkg" 2>/dev/null | wc -l | tr -d ' ')
+            [[ "$secret_hits" -gt 0 ]] && warnings+=" ${RED}[${secret_hits} possible secret(s)]${NC}"
+
+            printf "    ${GREEN}+${NC} %-24s ${DIM}%s files, %s${NC}%s\n" "$pkg" "$file_count" "$size_human" "$warnings"
+
+            # Show file listing
+            find "stow/$pkg" -type f 2>/dev/null | sed "s|stow/$pkg/||" | sort | while read -r f; do
+                printf "      ${DIM}%s${NC}\n" "$f"
+            done
+
+            [[ "$secret_hits" -gt 0 ]] && suspicious_files+=("$pkg")
+        done
+        echo ""
+    fi
+
+    # Show modified files
+    if [[ ${#modified_files[@]} -gt 0 ]]; then
+        echo -e "  ${BOLD}Modified files${NC} ${DIM}(changed since last commit)${NC}"
+        echo ""
+        for file in "${modified_files[@]}"; do
+            # Show a compact diff summary
+            local additions deletions
+            additions=$(git diff -- "$file" 2>/dev/null | grep -c '^+[^+]' || true)
+            deletions=$(git diff -- "$file" 2>/dev/null | grep -c '^-[^-]' || true)
+            printf "    ${YELLOW}~${NC} %-40s ${GREEN}+%s${NC} ${RED}-%s${NC}\n" "$file" "$additions" "$deletions"
+        done
+        echo ""
+    fi
+
+    # Summary line
+    echo -e "${DIM}──────────────────────────────────${NC}"
+    local parts=()
+    [[ ${#new_packages[@]} -gt 0 ]] && parts+=("${GREEN}${#new_packages[@]} new package(s)${NC}")
+    [[ ${#modified_files[@]} -gt 0 ]] && parts+=("${YELLOW}${#modified_files[@]} modified file(s)${NC}")
+    echo -e "  $(IFS='  |  '; echo "${parts[*]}")"
+
+    # Warn about suspicious content
+    if [[ ${#suspicious_files[@]} -gt 0 ]]; then
+        echo ""
+        echo -e "  ${RED}Warning:${NC} Potential secrets detected in: ${suspicious_files[*]}"
+        echo -e "  ${DIM}Review these packages carefully before committing.${NC}"
+    fi
+
+    echo ""
+
+    # Prompt for action
+    echo -e "  ${BOLD}Actions:${NC}"
+    echo -e "    ${GREEN}a${NC})  Commit all"
+    [[ ${#new_packages[@]} -gt 0 ]] && echo -e "    ${GREEN}n${NC})  Commit new packages only"
+    [[ ${#modified_files[@]} -gt 0 ]] && echo -e "    ${GREEN}m${NC})  Commit modified files only"
+    echo -e "    ${GREEN}d${NC})  Show full diff"
+    echo -e "    ${GREEN}q${NC})  Quit (no changes)"
+    echo ""
+
+    read -p "  Choose: " -n 1 -r
+    echo ""
+
+    case $REPLY in
+        a)
+            # Commit everything
+            local msg=""
+            if [[ ${#new_packages[@]} -gt 0 && ${#modified_files[@]} -gt 0 ]]; then
+                msg="chore(dotfiles): adopt ${new_packages[*]} and update configs"
+            elif [[ ${#new_packages[@]} -gt 0 ]]; then
+                if [[ ${#new_packages[@]} -eq 1 ]]; then
+                    msg="chore(dotfiles): adopt ${new_packages[0]} config"
+                else
+                    msg="chore(dotfiles): adopt ${#new_packages[@]} new configs (${new_packages[*]})"
+                fi
+            else
+                msg="chore(dotfiles): update modified configs"
+            fi
+
+            for pkg in "${new_packages[@]}"; do
+                git add "stow/$pkg"
+            done
+            for file in "${modified_files[@]}"; do
+                git add "$file"
+            done
+            git commit -m "$msg"
+            echo ""
+            echo -e "${GREEN}✓${NC} Committed: $msg"
+            ;;
+        n)
+            if [[ ${#new_packages[@]} -eq 0 ]]; then
+                echo "No new packages to commit."
+            else
+                local msg
+                if [[ ${#new_packages[@]} -eq 1 ]]; then
+                    msg="chore(dotfiles): adopt ${new_packages[0]} config"
+                else
+                    msg="chore(dotfiles): adopt ${#new_packages[@]} new configs (${new_packages[*]})"
+                fi
+                for pkg in "${new_packages[@]}"; do
+                    git add "stow/$pkg"
+                done
+                git commit -m "$msg"
+                echo ""
+                echo -e "${GREEN}✓${NC} Committed: $msg"
+            fi
+            ;;
+        m)
+            if [[ ${#modified_files[@]} -eq 0 ]]; then
+                echo "No modified files to commit."
+            else
+                for file in "${modified_files[@]}"; do
+                    git add "$file"
+                done
+                git commit -m "chore(dotfiles): update modified configs"
+                echo ""
+                echo -e "${GREEN}✓${NC} Committed modified files"
+            fi
+            ;;
+        d)
+            echo ""
+            for pkg in "${new_packages[@]}"; do
+                echo -e "${BOLD}=== New: $pkg ===${NC}"
+                find "stow/$pkg" -type f -exec file {} \; 2>/dev/null | grep -v "binary\|executable\|data" | cut -d: -f1 | while read -r f; do
+                    echo -e "\n${CYAN}--- $f ---${NC}"
+                    head -30 "$f"
+                    local total
+                    total=$(wc -l < "$f" | tr -d ' ')
+                    [[ "$total" -gt 30 ]] && echo -e "${DIM}  ... ($total lines total)${NC}"
+                done
+                echo ""
+            done
+            git diff -- "${modified_files[@]}" 2>/dev/null
+            echo ""
+            echo -e "${DIM}Run 'dotfiles review' again to commit.${NC}"
+            ;;
+        *)
+            echo "No changes made."
+            ;;
+    esac
+
+    cd - > /dev/null || return
 }
 
 # Update dotfiles
@@ -756,3 +976,33 @@ emptytrash() {
     rm -rf ~/.Trash/*
     echo "Trash emptied!"
 }
+
+# Startup Checks
+# ============================================================================
+
+# Nudge for uncommitted dotfiles adoptions (once per session, >24h old only)
+_dotfiles_pending_check() {
+    # Skip if already checked this session
+    [[ -n "$_DOTFILES_CHECKED" ]] && return
+    export _DOTFILES_CHECKED=1
+
+    local dotfiles_dir="${SYSTEM_DIR:-$HOME/Documents/paras/04-system}/dotfiles"
+    [[ -d "$dotfiles_dir/.git" ]] || return
+
+    # Fast check: any untracked stow/ dirs?
+    local pending
+    pending=$(git -C "$dotfiles_dir" status --porcelain 2>/dev/null | grep -c '^?? stow/' || true)
+    [[ "$pending" -eq 0 ]] && return
+
+    # Check if oldest untracked package is >24h old
+    local oldest_ts now_ts age_hours
+    oldest_ts=$(find "$dotfiles_dir"/stow -maxdepth 2 -name ".git" -prune -o -type d -print 2>/dev/null \
+        | head -5 | while read -r d; do stat -f "%m" "$d" 2>/dev/null; done | sort -n | head -1)
+    [[ -z "$oldest_ts" ]] && return
+    now_ts=$(date +%s)
+    age_hours=$(( (now_ts - oldest_ts) / 3600 ))
+    [[ "$age_hours" -lt 24 ]] && return
+
+    echo -e "\033[2mdotfiles: ${pending} adopted config(s) pending commit. Run \033[0mdotfiles review\033[2m to commit.\033[0m"
+}
+_dotfiles_pending_check

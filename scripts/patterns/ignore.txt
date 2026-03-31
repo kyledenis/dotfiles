@@ -223,9 +223,59 @@ Calibre Library/*
 .1password/*
 
 # ============================================================================
-# Codex and AI tools (frequently changing, ephemeral)
+# AI tools (frequently changing, ephemeral, or separately managed)
 # ============================================================================
 .codex
 .codex/*
 .copilot
 .copilot/*
+.skills
+.skills/*
+.hermes
+.hermes/*
+.ghcp-appmod
+.ghcp-appmod/*
+.kimi
+.kimi/*
+
+# ============================================================================
+# .NET / Visual Studio runtime state
+# ============================================================================
+.aspnet
+.aspnet/*
+.dotnet
+.dotnet/*
+.nuget
+.nuget/*
+.ServiceHub
+.ServiceHub/*
+.templateengine
+.templateengine/*
+
+# ============================================================================
+# Miscellaneous caches and runtime state
+# ============================================================================
+.matplotlib
+.matplotlib/*
+.objection
+.objection/*
+.ollama
+.ollama/*
+.pdf-filler-profiles
+.pdf-filler-profiles/*
+.pdf-toolkit-files
+.pdf-toolkit-files/*
+.mm-report
+.mm-report/*
+.atuin
+.atuin/*
+.zsh
+.zsh/*
+.gnupg
+.gnupg/*
+
+# ============================================================================
+# Backup and history files
+# ============================================================================
+.gitconfig.bak-*
+.aider.chat.history.md
