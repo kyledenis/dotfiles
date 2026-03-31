@@ -75,7 +75,7 @@ background-blur = 12
 macos-option-as-alt = left
 
 # Quick terminal (global hotkey — drops down from top)
-keybind = global:cmd+grave_accent=toggle_quick_terminal
+keybind = global:cmd+backslash=toggle_quick_terminal
 quick-terminal-animation-duration = 0.12
 
 # Cursor — matching VS Code preference
