@@ -76,6 +76,7 @@ macos-option-as-alt = left
 
 # Quick terminal (global hotkey — drops down from top)
 keybind = global:cmd+grave_accent=toggle_quick_terminal
+quick-terminal-animation-duration = 0.12
 
 # Cursor — matching VS Code preference
 cursor-style = underline
@@ -84,6 +85,10 @@ mouse-hide-while-typing = true
 
 # Splits
 unfocused-split-opacity = 0.85
+
+# Behaviour
+copy-on-select = false
+quit-after-last-window-closed = true
 
 # SSH — auto-install terminfo on arc-reactor, Pi, etc.
 shell-integration-features = cursor,sudo,title,ssh-terminfo
