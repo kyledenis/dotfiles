@@ -299,11 +299,18 @@ read_manifest() {
     fi
 }
 
-# Get a skill's hash from the manifest
+# Get a skill's canonical hash from the manifest
 manifest_hash() {
     local manifest_json="$1"
     local skill_name="$2"
     echo "$manifest_json" | yq eval -p json ".skills.\"$skill_name\".hash // \"\"" -
+}
+
+# Get a skill's tool output hash from the manifest
+manifest_tool_hash() {
+    local manifest_json="$1"
+    local skill_name="$2"
+    echo "$manifest_json" | yq eval -p json ".skills.\"$skill_name\".tool_hash // \"\"" -
 }
 
 # Write an updated manifest
@@ -383,8 +390,12 @@ if [ "$IMPORT_MODE" = true ]; then
     declare -a IMPORT_NAMES=()
     declare -a IMPORT_DIRS=()
     declare -a IMPORT_DESCS=()
+    declare -a DIVERGED_TOOLS=()
+    declare -a DIVERGED_NAMES=()
+    declare -a DIVERGED_DIRS=()
     IMPORT_COUNT=0
     IMPORT_SKIP=0
+    DIVERGED_COUNT=0
 
     for tool in "${TOOLS[@]}"; do
         tool_dir="${TOOL_DEST[$tool]}"
@@ -415,10 +426,22 @@ if [ "$IMPORT_MODE" = true ]; then
                     ;;
             esac
 
-            # Skip if managed by skills-sync (in manifest)
+            # Check if managed by skills-sync (in manifest)
             managed_hash=$(manifest_hash "$tool_manifest" "$candidate_name")
             if [ -n "$managed_hash" ]; then
-                print_verbose "Skipping $candidate_name from $tool (managed by sync)"
+                # Managed — but has it been modified in-place?
+                # Compare against tool_hash (hash of the transformed output), not canonical hash
+                expected_tool_hash=$(manifest_tool_hash "$tool_manifest" "$candidate_name")
+                current_tool_hash=$(hash_skill_dir "$candidate_dir")
+                if [ -n "$expected_tool_hash" ] && [ "$current_tool_hash" != "$expected_tool_hash" ]; then
+                    # Diverged from canonical — flag it
+                    DIVERGED_TOOLS+=("$tool")
+                    DIVERGED_NAMES+=("$candidate_name")
+                    DIVERGED_DIRS+=("$candidate_dir")
+                    DIVERGED_COUNT=$((DIVERGED_COUNT + 1))
+                else
+                    print_verbose "Skipping $candidate_name from $tool (managed, unchanged)"
+                fi
                 continue
             fi
 
@@ -454,18 +477,32 @@ if [ "$IMPORT_MODE" = true ]; then
         done
     fi
 
+    # Display diverged skills
+    if [ "$DIVERGED_COUNT" -gt 0 ]; then
+        echo ""
+        echo -e "  ${BOLD}${YELLOW}Modified in-place (diverged from canonical):${NC}"
+        for i in $(seq 0 $((DIVERGED_COUNT - 1))); do
+            printf "    ${YELLOW}!${NC} %-24s ${DIM}modified in ${DIVERGED_TOOLS[$i]}${NC}\n" "${DIVERGED_NAMES[$i]}"
+        done
+        echo ""
+        echo -e "  ${DIM}These were synced from ~/.skills but edited locally.${NC}"
+        echo -e "  ${DIM}To keep local changes: copy from tool dir to ~/.skills manually${NC}"
+        echo -e "  ${DIM}To discard local changes: run skills-sync (overwrites with canonical)${NC}"
+    fi
+
     # Summary
     echo ""
     echo -e "${DIM}──────────────────────────────────${NC}"
 
-    if [ "$IMPORT_COUNT" -eq 0 ] && [ "$IMPORT_SKIP" -eq 0 ]; then
-        print_info "No unmanaged skills found in any tool directory"
+    if [ "$IMPORT_COUNT" -eq 0 ] && [ "$IMPORT_SKIP" -eq 0 ] && [ "$DIVERGED_COUNT" -eq 0 ]; then
+        print_info "No unmanaged or modified skills found in any tool directory"
         exit 0
     fi
 
     parts=()
     [ "$IMPORT_COUNT" -gt 0 ] && parts+=("${GREEN}$IMPORT_COUNT to import${NC}")
     [ "$IMPORT_SKIP" -gt 0 ] && parts+=("${YELLOW}$IMPORT_SKIP skipped (duplicate)${NC}")
+    [ "$DIVERGED_COUNT" -gt 0 ] && parts+=("${YELLOW}$DIVERGED_COUNT modified${NC}")
     echo -e "  $(IFS='  |  '; echo "${parts[*]}")"
     echo ""
 
@@ -646,9 +683,13 @@ for tool in "${TOOLS[@]}"; do
             fi
         fi
 
-        # Update manifest entry
+        # Update manifest entry (store both canonical hash and tool output hash)
+        tool_output_hash=""
+        if [ "$DRY_RUN" = false ] && [ -d "$dest_dir" ]; then
+            tool_output_hash=$(hash_skill_dir "$dest_dir")
+        fi
         new_manifest=$(echo "$new_manifest" | yq eval -p json -o json \
-            ".skills.\"$skill_name\".hash = \"$current_hash\" | .skills.\"$skill_name\".version = \"$(read_field "$skill_file" "version")\"" -)
+            ".skills.\"$skill_name\".hash = \"$current_hash\" | .skills.\"$skill_name\".version = \"$(read_field "$skill_file" "version")\" | .skills.\"$skill_name\".tool_hash = \"$tool_output_hash\"" -)
 
         SYNCED=$((SYNCED + 1))
         tool_synced=$((tool_synced + 1))
