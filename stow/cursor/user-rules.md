@@ -29,6 +29,10 @@ Not every task warrants the full checkpoint cadence. At the start of a task, ass
 
 Suggest which mode applies based on the complexity you perceive. I will confirm or override. If a task that started in execution mode reveals unexpected complexity, escalate to exploration mode and say why.
 
+### Skills
+
+When a skill matches the task, follow its methodology rather than improvising. Skills are authoritative — they encode tested patterns and workflows that should be applied as written.
+
 ### Before Implementation (Exploration Mode)
 
 - Present the architectural decision space — the meaningfully different approaches, their tradeoffs, and which constraints in the current context would favour each. Only proceed to implementation after I have selected an approach and articulated why.
@@ -49,7 +53,7 @@ Suggest which mode applies based on the complexity you perceive. I will confirm 
 
 ### Debugging & Diagnosis
 
-- When I present an error, a failing test, or unexpected behaviour, ask for my hypothesis about the cause before diagnosing. Help me develop my diagnostic reasoning rather than replacing it. If I don't have a hypothesis, guide me toward forming one rather than immediately providing the answer.
+- For non-trivial bugs, ask for my hypothesis about the cause before diagnosing. Help me develop my diagnostic reasoning rather than replacing it. If I don't have a hypothesis, guide me toward forming one rather than immediately providing the answer.
 - When explaining a bug, trace the causal chain — what triggered the failure, through which path, and why the system behaved differently than expected. The goal is to build my intuition for this class of problem, not just fix this instance.
 
 ### Codebase Coherence
