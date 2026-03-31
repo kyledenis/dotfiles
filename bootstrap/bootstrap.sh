@@ -256,6 +256,33 @@ if [ "$SKIP_DOTFILES" = false ]; then
     fi
 
     cd - > /dev/null || exit 1
+
+    # Post-stow: install auto-adopt daemon
+    if [ -f "$SCRIPT_DIR/../scripts/setup-auto-adopt.sh" ]; then
+        print_info "Installing auto-adopt daemon..."
+        bash "$SCRIPT_DIR/../scripts/setup-auto-adopt.sh" install
+        print_success "Auto-adopt daemon installed"
+    fi
+
+    # Post-stow: install git hooks
+    if [ -f "$SCRIPT_DIR/../scripts/setup-hooks.sh" ]; then
+        print_info "Installing git hooks..."
+        bash "$SCRIPT_DIR/../scripts/setup-hooks.sh"
+        print_success "Git hooks installed"
+    fi
+
+    # Post-stow: sync AI skills (if private skills repo is cloned)
+    if [ -d "$HOME/.skills" ]; then
+        if [ -f "$SCRIPT_DIR/../scripts/skills-sync.sh" ]; then
+            print_info "Syncing AI skills..."
+            bash "$SCRIPT_DIR/../scripts/skills-sync.sh"
+            print_success "Skills synced to Claude Code and Cursor"
+        fi
+    else
+        print_info "Skills repo not found. Clone it to enable AI skills:"
+        echo "  git clone git@github.com:kyledenis/skills ~/.skills"
+        echo "  skills-sync"
+    fi
 else
     print_warning "Skipping dotfile deployment"
 fi
@@ -297,15 +324,6 @@ else
     print_success "zsh is already the default shell"
 fi
 
-# Install Oh My Zsh if not present (optional)
-if [ ! -d "$HOME/.oh-my-zsh" ]; then
-    if confirm "Install Oh My Zsh? (optional)"; then
-        print_info "Installing Oh My Zsh..."
-        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-        print_success "Oh My Zsh installed"
-    fi
-fi
-
 ################################################################################
 # 5. Git Configuration
 ################################################################################
@@ -334,33 +352,37 @@ else
 fi
 
 ################################################################################
-# 6. SSH Key Setup
+# 6. SSH Key Setup (1Password SSH Agent)
 ################################################################################
 
 print_header "SSH Configuration"
 
+# Check 1Password SSH agent
+if [ -f "$HOME/.config/1Password/ssh/agent.toml" ]; then
+    print_success "1Password SSH agent config found"
+else
+    print_warning "1Password SSH agent not configured"
+    print_info "Install 1Password, enable the SSH agent, and configure ~/.config/1Password/ssh/agent.toml"
+fi
+
+# Check SSH config (deployed by stow)
 if [ -f "$HOME/.ssh/config" ]; then
     print_success "SSH config found at ~/.ssh/config"
 else
-    print_warning "No SSH config found"
+    print_warning "No SSH config found — ensure the ssh stow package was deployed"
 fi
 
-# Check for SSH keys
-if [ ! -f "$HOME/.ssh/id_ed25519" ] && [ ! -f "$HOME/.ssh/id_rsa" ]; then
-    if confirm "No SSH keys found. Generate a new SSH key?"; then
-        read -p "Enter your email for SSH key: " ssh_email
-        ssh-keygen -t ed25519 -C "$ssh_email"
-
-        print_success "SSH key generated"
-        print_info "Add this key to GitHub/GitLab:"
-        cat "$HOME/.ssh/id_ed25519.pub"
-
-        # Start SSH agent and add key
-        eval "$(ssh-agent -s)"
-        ssh-add "$HOME/.ssh/id_ed25519"
+# Show existing keys
+if [ -d "$HOME/.ssh/keys" ]; then
+    local key_count
+    key_count=$(ls "$HOME/.ssh/keys"/*.pub 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$key_count" -gt 0 ]; then
+        print_success "$key_count SSH key(s) found in ~/.ssh/keys/"
+    else
+        print_info "No SSH keys yet. Create one with: ssh-create <name>"
     fi
 else
-    print_success "SSH keys already exist"
+    print_info "No SSH keys directory. Create a key with: ssh-create <name>"
 fi
 
 ################################################################################
