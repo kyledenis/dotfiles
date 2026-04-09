@@ -695,13 +695,34 @@ for tool in "${TOOLS[@]}"; do
         tool_synced=$((tool_synced + 1))
     done
 
-    # Prune orphaned skills
-    if [ "$PRUNE" = true ]; then
-        # Get list of managed skills from manifest
-        managed_skills=$(echo "$local_manifest" | yq eval -p json '.skills | keys | .[]' - 2>/dev/null)
+    # Clean up retargeted skills — skills in manifest that no longer target this tool
+    managed_skills=$(echo "$local_manifest" | yq eval -p json '.skills | keys | .[]' - 2>/dev/null)
 
+    for managed_name in $managed_skills; do
+        dest_dir="${TOOL_DEST[$tool]}/$managed_name"
+        canonical_skill="$SKILLS_DIR/$managed_name/SKILL.md"
+
+        # Skill exists but no longer targets this tool → remove from this tool
+        if [ -f "$canonical_skill" ]; then
+            targets=$(read_targets "$canonical_skill")
+            if [ "$targets" != "all" ] && ! echo "$targets" | grep -qw "$tool"; then
+                if [ "$DRY_RUN" = true ]; then
+                    print_info "Would remove: $managed_name (no longer targets $tool)"
+                else
+                    if [ -d "$dest_dir" ]; then
+                        rm -rf "$dest_dir"
+                        print_warning "Removed: $managed_name ${DIM}(retargeted, no longer targets $tool)${NC}"
+                    fi
+                    new_manifest=$(echo "$new_manifest" | yq eval -p json -o json "del(.skills.\"$managed_name\")" -)
+                fi
+                PRUNED=$((PRUNED + 1))
+            fi
+        fi
+    done
+
+    # Prune deleted skills — skills in manifest that no longer exist in canonical store
+    if [ "$PRUNE" = true ]; then
         for managed_name in $managed_skills; do
-            # Check if skill still exists in canonical store
             if [ ! -d "$SKILLS_DIR/$managed_name" ]; then
                 dest_dir="${TOOL_DEST[$tool]}/$managed_name"
 
