@@ -7,7 +7,6 @@
   defaultBranch = master
 
 [pull]
-  rebase = false
 
 # Asta identity for anything under ~/Documents/paras/00-projects/work/asta/
 [includeIf "gitdir:~/Documents/paras/00-projects/work/asta/"]
