@@ -1003,6 +1003,18 @@ _dotfiles_pending_check() {
     age_hours=$(( (now_ts - oldest_ts) / 3600 ))
     [[ "$age_hours" -lt 24 ]] && return
 
-    echo -e "\033[2mdotfiles: ${pending} adopted config(s) pending commit. Run \033[0mdotfiles review\033[2m to commit.\033[0m"
+    # Defer output to a precmd after P10k instant prompt has released stdout.
+    # P10k forces _p9k_precmd to run LAST in precmd_functions, and it's there
+    # that _p9k_clear_instant_prompt restores fd 1/2 and unsets the flag.
+    # So: first precmd → flag still set → skip; second precmd → flag gone → echo.
+    _dotfiles_pending_msg="\033[2mdotfiles: ${pending} adopted config(s) pending commit. Run \033[0mdotfiles review\033[2m to commit.\033[0m"
+    autoload -Uz add-zsh-hook
+    _dotfiles_show_pending() {
+        (( ${+__p9k_instant_prompt_active} )) && return
+        echo -e "$_dotfiles_pending_msg"
+        unset _dotfiles_pending_msg
+        add-zsh-hook -d precmd _dotfiles_show_pending
+    }
+    add-zsh-hook precmd _dotfiles_show_pending
 }
 _dotfiles_pending_check
