@@ -1,0 +1,38 @@
+[provider]
+default = "cli"
+fallback_chain = [
+    "cli",
+    "api",
+    "local",
+]
+
+[provider.cli]
+backend = "claude-code"
+timeout = 1800
+
+[provider.api]
+model = "claude-sonnet-4-6"
+
+[provider.local]
+backend = "ollama"
+model = "qwen3:32b"
+endpoint = "http://localhost:11434"
+
+[render]
+default_quality = "medium"
+deep_quality = "production"
+default_format = "video"
+
+[verification]
+always_attempt = true
+allow_unverified_viz = true
+explore_timeout = 600
+deep_timeout = 1800
+
+[workspace]
+path = "/Users/kyledenis/.local/share/mathlens/explorations"
+
+[ui]
+theme = "auto"
+open_video_on_complete = true
+show_proof_excerpt = true
