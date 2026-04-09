@@ -17,3 +17,7 @@ fi
 # --------------------------------------------------
 ZSH_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/zsh/zshrc"
 [[ -r "$ZSH_CONFIG" ]] && source "$ZSH_CONFIG"
+
+fpath+=~/.zfunc; autoload -Uz compinit; compinit
+
+zstyle ':completion:*' menu select
