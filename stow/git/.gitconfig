@@ -1,7 +1,7 @@
 [user]
   name = Kyle Denis
   email = 91653791+kyledenis@users.noreply.github.com
-  signingkey = ~/.ssh/keys/github-rogue-m5.pub
+  signingkey = ~/.ssh/keys/github-personal.pub
 
 [init]
   defaultBranch = master
