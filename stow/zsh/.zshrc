@@ -21,3 +21,8 @@ ZSH_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/zsh/zshrc"
 fpath+=~/.zfunc; autoload -Uz compinit; compinit
 
 zstyle ':completion:*' menu select
+
+# Added by LM Studio CLI (lms)
+export PATH="$PATH:/Users/kyledenis/.lmstudio/bin"
+# End of LM Studio CLI section
+

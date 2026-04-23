@@ -591,203 +591,385 @@ dotfiles-review() {
     local RED='\033[0;31m'
     local GREEN='\033[0;32m'
     local YELLOW='\033[1;33m'
-    local BLUE='\033[0;34m'
     local CYAN='\033[0;36m'
     local BOLD='\033[1m'
     local DIM='\033[2m'
     local NC='\033[0m'
 
-    # Collect changes
-    local -a new_packages=()
-    local -a modified_files=()
-    local -a suspicious_files=()
+    # ── Collect changes by package ──────────────────────────
+    local -A pkg_added=()      # pkg → list of added files
+    local -A pkg_deleted=()    # pkg → list of deleted files
+    local -A pkg_modified=()   # pkg → list of modified files
+    local -a new_packages=()   # untracked stow packages
+    local -a changed_packages=()  # all packages with changes
+    local -a blocked_files=()  # dangerous files that block commit
 
-    # Find new packages (untracked dirs in stow/)
+    # New untracked packages
+    local dir pkg
     while IFS= read -r line; do
-        local dir="${line#\?\? }"
-        # Only top-level stow packages
+        dir="${line#\?\? }"
         if [[ "$dir" == stow/*/ ]]; then
-            local pkg="${dir#stow/}"
+            pkg="${dir#stow/}"
             pkg="${pkg%/}"
             new_packages+=("$pkg")
         fi
     done < <(git status --porcelain 2>/dev/null | grep '^?? stow/')
 
-    # Find modified tracked files
+    # Tracked file changes (modified, added, deleted)
+    local st file
     while IFS= read -r line; do
-        local status="${line:0:2}"
-        local file="${line:3}"
-        if [[ "$status" == " M" || "$status" == "M " || "$status" == "MM" ]]; then
-            modified_files+=("$file")
-        fi
+        st="${line:0:2}"
+        file="${line:3}"
+        [[ "$file" != stow/* ]] && continue
+        pkg="${file#stow/}"
+        pkg="${pkg%%/*}"
+
+        case "$st" in
+            " M"|"M "|"MM") pkg_modified[$pkg]+="${file#stow/$pkg/}"$'\n' ;;
+            " D"|"D ")       pkg_deleted[$pkg]+="${file#stow/$pkg/}"$'\n' ;;
+            "A "|"AM")       pkg_added[$pkg]+="${file#stow/$pkg/}"$'\n' ;;
+        esac
     done < <(git status --porcelain 2>/dev/null)
 
+    # Build unique list of changed packages
+    local k
+    for k in ${(k)pkg_modified} ${(k)pkg_deleted} ${(k)pkg_added}; do
+        if (( ! ${changed_packages[(Ie)$k]} )); then
+            changed_packages+=("$k")
+        fi
+    done
+
     # Nothing pending?
-    if [[ ${#new_packages[@]} -eq 0 && ${#modified_files[@]} -eq 0 ]]; then
+    if [[ ${#new_packages[@]} -eq 0 && ${#changed_packages[@]} -eq 0 ]]; then
         echo -e "${GREEN}✓${NC} Nothing to review — dotfiles are clean"
         cd - > /dev/null || return
         return 0
     fi
 
-    # Header
-    echo ""
-    echo -e "${BOLD}Dotfiles Review${NC}"
-    echo ""
+    # ── Safety checks ───────────────────────────────────────
 
-    # Show new packages
-    if [[ ${#new_packages[@]} -gt 0 ]]; then
-        echo -e "  ${BOLD}New packages${NC} ${DIM}(adopted by auto-adopt, not yet committed)${NC}"
+    # Check for private keys (files in ssh keys dir without .pub extension)
+    local f
+    for f in stow/ssh/.ssh/keys/*; do
+        [[ ! -f "$f" ]] && continue
+        [[ "$f" == *.pub ]] && continue
+        blocked_files+=("$f")
+    done
+
+    # Check all changed/new files for private key content
+    local check_file
+    {
+        for k in "${new_packages[@]}"; do
+            find "stow/$k" -type f 2>/dev/null
+        done
+        for k in "${changed_packages[@]}"; do
+            while IFS= read -r f; do
+                [[ -n "$f" ]] && echo "stow/$k/$f"
+            done <<< "${pkg_added[$k]}${pkg_modified[$k]}"
+        done
+    } | while read -r check_file; do
+        [[ ! -f "$check_file" ]] && continue
+        if grep -q '-----BEGIN.*PRIVATE KEY-----' "$check_file" 2>/dev/null; then
+            blocked_files+=("$check_file")
+        fi
+    done
+
+    if [[ ${#blocked_files[@]} -gt 0 ]]; then
         echo ""
-        for pkg in "${new_packages[@]}"; do
-            # Count files and total size
-            local file_count size_human
-            file_count=$(find "stow/$pkg" -type f 2>/dev/null | wc -l | tr -d ' ')
-            size_human=$(du -sh "stow/$pkg" 2>/dev/null | cut -f1 | tr -d ' ')
-
-            # Check for suspicious content
-            local warnings=""
-            # Large files (>1MB)
-            local large_files
-            large_files=$(find "stow/$pkg" -type f -size +1M 2>/dev/null | wc -l | tr -d ' ')
-            [[ "$large_files" -gt 0 ]] && warnings+=" ${YELLOW}[${large_files} large file(s)]${NC}"
-            # Binary files
-            local binary_files
-            binary_files=$(find "stow/$pkg" -type f -exec file {} \; 2>/dev/null | grep -c "binary\|executable\|data" || true)
-            [[ "$binary_files" -gt 0 ]] && warnings+=" ${YELLOW}[${binary_files} binary]${NC}"
-            # Potential secrets
-            local secret_hits
-            secret_hits=$(grep -rlE '(api[_-]?key|secret|token|password|private[_-]?key)\s*[:=]' "stow/$pkg" 2>/dev/null | wc -l | tr -d ' ')
-            [[ "$secret_hits" -gt 0 ]] && warnings+=" ${RED}[${secret_hits} possible secret(s)]${NC}"
-
-            printf "    ${GREEN}+${NC} %-24s ${DIM}%s files, %s${NC}%s\n" "$pkg" "$file_count" "$size_human" "$warnings"
-
-            # Show file listing
-            find "stow/$pkg" -type f 2>/dev/null | sed "s|stow/$pkg/||" | sort | while read -r f; do
-                printf "      ${DIM}%s${NC}\n" "$f"
-            done
-
-            [[ "$secret_hits" -gt 0 ]] && suspicious_files+=("$pkg")
+        echo -e "  ${RED}BLOCKED${NC} — dangerous files detected:"
+        echo ""
+        for f in "${blocked_files[@]}"; do
+            echo -e "    ${RED}✗${NC} $f"
         done
         echo ""
+        echo -e "  ${DIM}Remove these files before committing. Private keys belong in 1Password, not git.${NC}"
+        echo ""
+        cd - > /dev/null || return
+        return 1
     fi
 
-    # Show modified files
-    if [[ ${#modified_files[@]} -gt 0 ]]; then
-        echo -e "  ${BOLD}Modified files${NC} ${DIM}(changed since last commit)${NC}"
-        echo ""
-        for file in "${modified_files[@]}"; do
-            # Show a compact diff summary
-            local additions deletions
-            additions=$(git diff -- "$file" 2>/dev/null | grep -c '^+[^+]' || true)
-            deletions=$(git diff -- "$file" 2>/dev/null | grep -c '^-[^-]' || true)
-            printf "    ${YELLOW}~${NC} %-40s ${GREEN}+%s${NC} ${RED}-%s${NC}\n" "$file" "$additions" "$deletions"
-        done
-        echo ""
-    fi
+    # ── Generate commit messages per package ────────────────
 
-    # Summary line
-    echo -e "${DIM}──────────────────────────────────${NC}"
-    local parts=()
-    [[ ${#new_packages[@]} -gt 0 ]] && parts+=("${GREEN}${#new_packages[@]} new package(s)${NC}")
-    [[ ${#modified_files[@]} -gt 0 ]] && parts+=("${YELLOW}${#modified_files[@]} modified file(s)${NC}")
-    echo -e "  $(IFS='  |  '; echo "${parts[*]}")"
+    local -A pkg_messages=()
+    local additions deletions diff_content parts_str
+    local -a parts=()
+    local commit_type added_keys deleted_keys key_names verb new_hosts removed_hosts
+    local basename filepath changed_funcs new_plugin new_aliases
+    local mod_count del_count add_count total_changes only_file
+    local file_list fcount total new_ahead
+    local -a pkg_files=()
 
-    # Warn about suspicious content
-    if [[ ${#suspicious_files[@]} -gt 0 ]]; then
-        echo ""
-        echo -e "  ${RED}Warning:${NC} Potential secrets detected in: ${suspicious_files[*]}"
-        echo -e "  ${DIM}Review these packages carefully before committing.${NC}"
-    fi
+    # Helper: describe change character based on diff stats
+    # High add+delete = restructure, mostly adds = extend, mostly deletes = trim
+    _describe_config_change() {
+        local file="$1" add del
+        add=$(git diff -- "$file" 2>/dev/null | grep -c '^+[^+]' || echo 0)
+        del=$(git diff -- "$file" 2>/dev/null | grep -c '^-[^-]' || echo 0)
+        if [[ $add -gt 10 && $del -gt 10 ]]; then
+            echo "reorganise"
+        elif [[ $add -gt $del && $del -gt 0 ]]; then
+            echo "update"
+        elif [[ $del -gt $add ]]; then
+            echo "simplify"
+        elif [[ $add -gt 0 ]]; then
+            echo "extend"
+        else
+            echo "update"
+        fi
+    }
 
+    for pkg in "${changed_packages[@]}"; do
+        parts=()
+        commit_type="chore"
+
+        # ── SSH package ─────────────────────────────
+        if [[ "$pkg" == "ssh" ]]; then
+            # Key changes
+            added_keys=0 deleted_keys=0 key_names=""
+            while IFS= read -r f; do
+                [[ -z "$f" ]] && continue
+                if [[ "$f" == .ssh/keys/*.pub ]]; then
+                    (( added_keys++ ))
+                    key_names+="${${f%.pub}##*/} "
+                fi
+            done <<< "${pkg_added[$pkg]}"
+            while IFS= read -r f; do
+                [[ -z "$f" ]] && continue
+                [[ "$f" == .ssh/keys/*.pub ]] && (( deleted_keys++ ))
+            done <<< "${pkg_deleted[$pkg]}"
+
+            [[ $added_keys -gt 0 ]] && parts+=("add ${key_names% } key")
+            if [[ $deleted_keys -gt 1 ]]; then
+                parts+=("clean up $deleted_keys orphan keys")
+            elif [[ $deleted_keys -eq 1 ]]; then
+                parts+=("remove orphan key")
+            fi
+
+            # Config changes — diff-aware verb selection
+            if [[ "${pkg_modified[$pkg]}" == *config* ]]; then
+                verb=$(_describe_config_change "stow/ssh/.ssh/config")
+                diff_content=$(git diff -- "stow/ssh/.ssh/config" 2>/dev/null)
+
+                # Detect specific changes from diff content
+                new_hosts=$(echo "$diff_content" | grep '^+Host ' | grep -v '^+++' | sed 's/^+Host //' | tr '\n' ', ' | sed 's/, $//')
+                removed_hosts=$(echo "$diff_content" | grep '^-Host ' | grep -v '^---' | sed 's/^-Host //' | tr '\n' ', ' | sed 's/, $//')
+
+                if [[ -n "$new_hosts" && -n "$removed_hosts" ]]; then
+                    parts+=("${verb} config")
+                elif [[ -n "$new_hosts" ]]; then
+                    parts+=("add ${new_hosts} host")
+                elif [[ -n "$removed_hosts" ]]; then
+                    parts+=("remove ${removed_hosts} host")
+                elif [[ "$verb" != "update" ]]; then
+                    parts+=("${verb} config")
+                else
+                    # Check for specific option changes
+                    if echo "$diff_content" | grep -q '+.*RequestTTY'; then
+                        parts+=("suppress TTY for git hosts")
+                    else
+                        parts+=("update config")
+                    fi
+                fi
+            fi
+            commit_type="feat"
+
+        # ── ZSH package ─────────────────────────────
+        elif [[ "$pkg" == "zsh" ]]; then
+            while IFS= read -r f; do
+                [[ -z "$f" ]] && continue
+                basename="${f##*/}"
+                filepath="stow/$pkg/$f"
+                diff_content=$(git diff -- "$filepath" 2>/dev/null)
+
+                case "$basename" in
+                    functions.zsh)
+                        # Try to detect what changed in functions
+                        changed_funcs=$(echo "$diff_content" | grep -E '^[+-](function |[a-z_-]+\(\))' | grep -v '^[+-]{3}' | sed 's/^[+-]//' | sed 's/().*//' | sed 's/^function //' | sort -u | head -3 | tr '\n' ', ' | sed 's/, $//')
+                        if [[ -n "$changed_funcs" ]]; then
+                            # Determine if fix or update based on change ratio
+                            verb=$(_describe_config_change "$filepath")
+                            if [[ "$verb" == "update" ]]; then
+                                parts+=("update ${changed_funcs}")
+                            else
+                                parts+=("${verb} ${changed_funcs}")
+                            fi
+                        else
+                            parts+=("update shell functions")
+                        fi
+                        ;;
+                    .zshrc)
+                        # Detect what changed
+                        if echo "$diff_content" | grep -q '^+source\|^+zinit\|^+plug'; then
+                            new_plugin=$(echo "$diff_content" | grep '^+' | grep -oE '[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+' | head -1)
+                            if [[ -n "$new_plugin" ]]; then
+                                parts+=("add ${new_plugin} plugin")
+                            else
+                                parts+=("add new plugin")
+                            fi
+                        elif echo "$diff_content" | grep -q '^+export '; then
+                            parts+=("update environment variables")
+                        elif echo "$diff_content" | grep -q '^+alias '; then
+                            parts+=("add aliases")
+                        else
+                            parts+=("update zshrc")
+                        fi
+                        ;;
+                    aliases.zsh)
+                        new_aliases=$(echo "$diff_content" | grep '^+alias ' | sed "s/^+alias //" | cut -d= -f1 | tr '\n' ', ' | sed 's/, $//')
+                        if [[ -n "$new_aliases" ]]; then
+                            parts+=("add ${new_aliases} aliases")
+                        else
+                            parts+=("update aliases")
+                        fi
+                        ;;
+                    *)
+                        parts+=("update ${basename%.zsh}")
+                        ;;
+                esac
+            done <<< "${pkg_modified[$pkg]}"
+
+        # ── Git package ─────────────────────────────
+        elif [[ "$pkg" == "git" ]]; then
+            while IFS= read -r f; do
+                [[ -z "$f" ]] && continue
+                basename="${f##*/}"
+                case "$basename" in
+                    .gitconfig|config) parts+=("update git config") ;;
+                    .gitignore|ignore) parts+=("update global gitignore") ;;
+                    *)                 parts+=("update ${basename}") ;;
+                esac
+            done <<< "${pkg_modified[$pkg]}"
+
+        # ── Generic package ─────────────────────────
+        else
+            mod_count=0 del_count=0 add_count=0
+            while IFS= read -r f; do [[ -n "$f" ]] && (( mod_count++ )); done <<< "${pkg_modified[$pkg]}"
+            while IFS= read -r f; do [[ -n "$f" ]] && (( del_count++ )); done <<< "${pkg_deleted[$pkg]}"
+            while IFS= read -r f; do [[ -n "$f" ]] && (( add_count++ )); done <<< "${pkg_added[$pkg]}"
+
+            total_changes=$(( mod_count + del_count + add_count ))
+
+            if [[ $total_changes -eq 1 ]]; then
+                only_file=$(echo "${pkg_modified[$pkg]}${pkg_added[$pkg]}${pkg_deleted[$pkg]}" | head -1)
+                if [[ $del_count -eq 1 ]]; then
+                    parts+=("remove ${only_file##*/}")
+                elif [[ $add_count -eq 1 ]]; then
+                    parts+=("add ${only_file##*/}")
+                else
+                    parts+=("update ${only_file##*/}")
+                fi
+            elif [[ $del_count -gt 0 && $mod_count -eq 0 && $add_count -eq 0 ]]; then
+                parts+=("clean up $del_count files")
+            elif [[ $add_count -gt 0 && $mod_count -eq 0 && $del_count -eq 0 ]]; then
+                parts+=("add $add_count files")
+            else
+                parts+=("update $total_changes files")
+            fi
+        fi
+
+        # Build the message
+        if [[ ${#parts[@]} -gt 0 ]]; then
+            parts_str="${(j:, :)parts}"
+            pkg_messages[$pkg]="${commit_type}($pkg): $parts_str"
+        else
+            pkg_messages[$pkg]="chore($pkg): update config"
+        fi
+    done
+
+    # Messages for new packages
+    for pkg in "${new_packages[@]}"; do
+        file_list=$(find "stow/$pkg" -type f 2>/dev/null | sed "s|stow/$pkg/||" | sort)
+        fcount=$(echo "$file_list" | wc -l | tr -d ' ')
+        if [[ $fcount -eq 1 ]]; then
+            pkg_messages[$pkg]="chore(dotfiles): adopt ${pkg} config (${file_list})"
+        else
+            pkg_messages[$pkg]="chore(dotfiles): adopt ${pkg} config ($fcount files)"
+        fi
+    done
+
+    unfunction _describe_config_change 2>/dev/null
+
+    # ── Display ─────────────────────────────────────────────
+    echo ""
+    echo -e "  ${BOLD}Dotfiles Review${NC}"
     echo ""
 
-    # Prompt for action
-    echo -e "  ${BOLD}Actions:${NC}"
-    echo -e "    ${GREEN}a${NC})  Commit all"
-    [[ ${#new_packages[@]} -gt 0 ]] && echo -e "    ${GREEN}n${NC})  Commit new packages only"
-    [[ ${#modified_files[@]} -gt 0 ]] && echo -e "    ${GREEN}m${NC})  Commit modified files only"
-    echo -e "    ${GREEN}d${NC})  Show full diff"
-    echo -e "    ${GREEN}q${NC})  Quit (no changes)"
+    for pkg in "${changed_packages[@]}"; do
+        echo -e "    ${YELLOW}~${NC}  ${pkg_messages[$pkg]}"
+    done
+    for pkg in "${new_packages[@]}"; do
+        echo -e "    ${GREEN}+${NC}  ${pkg_messages[$pkg]}"
+    done
+
+    local total_commits=$(( ${#changed_packages[@]} + ${#new_packages[@]} ))
     echo ""
 
-    read -p "  Choose: " -n 1 -r
+    # Check remote status
+    local ahead
+    ahead=$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)
+
+    # ── Prompt ──────────────────────────────────────────────
+    if [[ $total_commits -eq 1 ]]; then
+        echo -ne "  Commit? ${DIM}[Y/n/d(iff)]${NC} "
+    else
+        echo -ne "  Commit ${total_commits} changes? ${DIM}[Y/n/d(iff)]${NC} "
+    fi
+
+    read -k 1 REPLY
     echo ""
 
     case $REPLY in
-        a)
-            # Commit everything
-            local msg=""
-            if [[ ${#new_packages[@]} -gt 0 && ${#modified_files[@]} -gt 0 ]]; then
-                msg="chore(dotfiles): adopt ${new_packages[*]} and update configs"
-            elif [[ ${#new_packages[@]} -gt 0 ]]; then
-                if [[ ${#new_packages[@]} -eq 1 ]]; then
-                    msg="chore(dotfiles): adopt ${new_packages[0]} config"
-                else
-                    msg="chore(dotfiles): adopt ${#new_packages[@]} new configs (${new_packages[*]})"
-                fi
-            else
-                msg="chore(dotfiles): update modified configs"
-            fi
-
+        [Yy]|$'\n')
+            echo ""
+            # Commit each package separately
+            for pkg in "${changed_packages[@]}"; do
+                # Stage files for this package
+                while IFS= read -r f; do
+                    [[ -n "$f" ]] && git add "stow/$pkg/$f"
+                done <<< "${pkg_modified[$pkg]}${pkg_added[$pkg]}"
+                while IFS= read -r f; do
+                    [[ -n "$f" ]] && git rm --cached "stow/$pkg/$f" 2>/dev/null
+                done <<< "${pkg_deleted[$pkg]}"
+                git commit -m "${pkg_messages[$pkg]}" --quiet
+                echo -e "    ${GREEN}✓${NC}  ${pkg_messages[$pkg]}"
+            done
             for pkg in "${new_packages[@]}"; do
                 git add "stow/$pkg"
+                git commit -m "${pkg_messages[$pkg]}" --quiet
+                echo -e "    ${GREEN}✓${NC}  ${pkg_messages[$pkg]}"
             done
-            for file in "${modified_files[@]}"; do
-                git add "$file"
-            done
-            git commit -m "$msg"
+
             echo ""
-            echo -e "${GREEN}✓${NC} Committed: $msg"
-            ;;
-        n)
-            if [[ ${#new_packages[@]} -eq 0 ]]; then
-                echo "No new packages to commit."
-            else
-                local msg
-                if [[ ${#new_packages[@]} -eq 1 ]]; then
-                    msg="chore(dotfiles): adopt ${new_packages[0]} config"
-                else
-                    msg="chore(dotfiles): adopt ${#new_packages[@]} new configs (${new_packages[*]})"
-                fi
-                for pkg in "${new_packages[@]}"; do
-                    git add "stow/$pkg"
-                done
-                git commit -m "$msg"
-                echo ""
-                echo -e "${GREEN}✓${NC} Committed: $msg"
-            fi
-            ;;
-        m)
-            if [[ ${#modified_files[@]} -eq 0 ]]; then
-                echo "No modified files to commit."
-            else
-                for file in "${modified_files[@]}"; do
-                    git add "$file"
-                done
-                git commit -m "chore(dotfiles): update modified configs"
-                echo ""
-                echo -e "${GREEN}✓${NC} Committed modified files"
+            new_ahead=$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)
+            if [[ $new_ahead -gt 0 ]]; then
+                echo -e "  ${DIM}⇡ ${new_ahead} ahead of origin${NC}"
             fi
             ;;
         d)
             echo ""
             for pkg in "${new_packages[@]}"; do
-                echo -e "${BOLD}=== New: $pkg ===${NC}"
-                find "stow/$pkg" -type f -exec file {} \; 2>/dev/null | grep -v "binary\|executable\|data" | cut -d: -f1 | while read -r f; do
-                    echo -e "\n${CYAN}--- $f ---${NC}"
+                echo -e "  ${BOLD}── $pkg (new) ──${NC}"
+                find "stow/$pkg" -type f 2>/dev/null | while read -r f; do
+                    echo -e "  ${CYAN}${f}${NC}"
                     head -30 "$f"
-                    local total
                     total=$(wc -l < "$f" | tr -d ' ')
-                    [[ "$total" -gt 30 ]] && echo -e "${DIM}  ... ($total lines total)${NC}"
+                    [[ "$total" -gt 30 ]] && echo -e "  ${DIM}... ($total lines total)${NC}"
                 done
                 echo ""
             done
-            git diff -- "${modified_files[@]}" 2>/dev/null
-            echo ""
-            echo -e "${DIM}Run 'dotfiles review' again to commit.${NC}"
+            for pkg in "${changed_packages[@]}"; do
+                echo -e "  ${BOLD}── $pkg ──${NC}"
+                pkg_files=()
+                while IFS= read -r f; do
+                    [[ -n "$f" ]] && pkg_files+=("stow/$pkg/$f")
+                done <<< "${pkg_modified[$pkg]}${pkg_added[$pkg]}${pkg_deleted[$pkg]}"
+                git diff -- "${pkg_files[@]}" 2>/dev/null
+                echo ""
+            done
+            echo -e "  ${DIM}Run 'dotfiles review' again to commit.${NC}"
             ;;
         *)
-            echo "No changes made."
+            echo "  No changes made."
             ;;
     esac
 
