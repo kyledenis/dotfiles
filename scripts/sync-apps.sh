@@ -194,8 +194,115 @@ audit() {
 # Add Mode - Interactively add new apps
 ################################################################################
 
+# Category definitions — labels map to Brewfile section markers
+CATEGORIES=(
+    "Browsers"
+    "Development & IDEs"
+    "AI Tools"
+    "Communication"
+    "Productivity & Organization"
+    "Window Management & UI"
+    "Utilities - System & Power"
+    "Utilities - Screenshots & Media"
+    "Design & Creative"
+    "Media - Video & Audio"
+    "Reading & Reference"
+    "Security & Privacy"
+    "File Management"
+    "Gaming"
+)
+
+# Auto-detect category based on cask name and brew info
+guess_category() {
+    local cask="$1"
+    local desc
+    desc=$(brew info --cask "$cask" 2>/dev/null | head -2 | tail -1 | tr '[:upper:]' '[:lower:]')
+
+    case "$cask" in
+        *browser*|firefox*|chrome*|arc|zen|brave*)    echo "Browsers"; return ;;
+        *studio*|*code*|*ide*|cursor|ghostty|iterm*|codex|opencode) echo "Development & IDEs"; return ;;
+        chatgpt*|claude*|ollama*|lm-studio*|*-ai*)    echo "AI Tools"; return ;;
+        discord*|slack*|signal*|whatsapp*|telegram*|zoom*) echo "Communication"; return ;;
+        *vpn*|mullvad*|proton*|wireshark*|burp*|cloudflare*) echo "Security & Privacy"; return ;;
+        figma*|sketch*|canva*|gimp*|rive*|affinity*)  echo "Design & Creative"; return ;;
+        spotify*|vlc*|iina*|audacity*|capcut*|jellyfin*) echo "Media - Video & Audio"; return ;;
+        anki*|calibre*)                                echo "Reading & Reference"; return ;;
+        steam*)                                        echo "Gaming"; return ;;
+    esac
+
+    # Fall back to brew description keywords
+    case "$desc" in
+        *browser*)    echo "Browsers" ;;
+        *develop*|*ide*|*editor*|*terminal*|*debug*) echo "Development & IDEs" ;;
+        *ai*|*language*model*|*llm*|*machine*learning*) echo "AI Tools" ;;
+        *messag*|*chat*|*communicat*|*video*call*) echo "Communication" ;;
+        *security*|*vpn*|*firewall*|*encrypt*) echo "Security & Privacy" ;;
+        *design*|*creative*|*photo*edit*|*illustrat*) echo "Design & Creative" ;;
+        *video*|*audio*|*media*|*music*|*stream*) echo "Media - Video & Audio" ;;
+        *screenshot*|*screen*capture*|*ocr*) echo "Utilities - Screenshots & Media" ;;
+        *window*|*menu*bar*|*dock*|*gesture*) echo "Window Management & UI" ;;
+        *produc*|*note*|*calendar*|*organiz*|*task*) echo "Productivity & Organization" ;;
+        *utilit*|*tool*|*monitor*|*battery*|*display*) echo "Utilities - System & Power" ;;
+        *)            echo "Utilities - System & Power" ;;
+    esac
+}
+
+# Find the line number of a Brewfile section header
+find_section_line() {
+    local section="$1"
+    local line_num
+    line_num=$(grep -n "^# $section" "$BREWFILE" 2>/dev/null | tail -1 | cut -d: -f1)
+    echo "${line_num:-0}"
+}
+
+# Insert a cask line into the correct Brewfile section
+insert_into_brewfile() {
+    local cask="$1"
+    local app="$2"
+    local category="$3"
+
+    local section_line
+    section_line=$(find_section_line "$category")
+
+    if [ "$section_line" -eq 0 ]; then
+        # Section not found — append before Fonts section or at end
+        local fonts_line
+        fonts_line=$(grep -n "^# Fonts" "$BREWFILE" 2>/dev/null | head -1 | cut -d: -f1)
+        if [ -n "$fonts_line" ] && [ "$fonts_line" -gt 0 ]; then
+            # Insert new section before Fonts
+            sed -i '' "${fonts_line}i\\
+\\
+# ${category}\\
+cask \"${cask}\"  # ${app}
+" "$BREWFILE"
+        else
+            # Append to end
+            printf '\n# %s\ncask "%s"  # %s\n' "$category" "$cask" "$app" >> "$BREWFILE"
+        fi
+    else
+        # Find the last cask line in this section (before next section or blank line gap)
+        local insert_after=$section_line
+        local total_lines
+        total_lines=$(wc -l < "$BREWFILE" | tr -d ' ')
+
+        for (( i = section_line + 1; i <= total_lines; i++ )); do
+            local line
+            line=$(sed -n "${i}p" "$BREWFILE")
+            if [[ "$line" == cask\ * ]]; then
+                insert_after=$i
+            elif [[ "$line" == "# "* ]] && [[ "$line" != "#"*"$category"* ]]; then
+                break
+            fi
+        done
+
+        sed -i '' "${insert_after}a\\
+cask \"${cask}\"  # ${app}
+" "$BREWFILE"
+    fi
+}
+
 add_apps() {
-    print_header "Add New Applications to Brewfile"
+    print_header "Add Apps to Brewfile"
 
     # Get apps not in brewfile
     INSTALLED_APPS=$(ls -1 /Applications/ | grep ".app$" | sed 's/.app$//' | grep -v "^Safari$\|^Utilities$\|^Developer$\|^TestFlight$")
@@ -211,61 +318,86 @@ add_apps() {
     done <<< "$INSTALLED_APPS"
 
     if [ ${#available_to_add[@]} -eq 0 ]; then
-        print_success "No new applications to add!"
+        print_success "All installed apps are already in Brewfile"
         return
     fi
 
-    echo "Found ${#available_to_add[@]} applications that can be added:"
+    local added=0
+    local skipped=0
+
+    echo -e "  ${DIM}${#available_to_add[@]} app(s) can be added. For each:${NC}"
+    echo -e "  ${DIM}  y = add  n = skip  i = info  q = quit${NC}"
     echo ""
 
     for entry in "${available_to_add[@]}"; do
         cask="${entry%%|*}"
         app="${entry##*|}"
 
-        echo -e "${CYAN}Add '$app' (cask: $cask)?${NC}"
-        read -p "  [y/n/q/i] (y=yes, n=no, q=quit, i=info) " -n 1 -r
-        echo
+        # Auto-detect category
+        local suggested
+        suggested=$(guess_category "$cask")
+
+        echo -ne "  ${GREEN}+${NC} ${BOLD}${app}${NC} ${DIM}(${cask})${NC} → ${CYAN}${suggested}${NC}  [y/n/c/i/q] "
+        read -n 1 -r REPLY
+        echo ""
 
         case $REPLY in
-            y|Y)
-                # Get category from user
-                echo "  Category?"
-                echo "    1) Browsers"
-                echo "    2) Development"
-                echo "    3) AI Tools"
-                echo "    4) Communication"
-                echo "    5) Productivity"
-                echo "    6) Utilities"
-                echo "    7) Media"
-                echo "    8) Design"
-                echo "    9) Other"
-                read -p "  Enter number (1-9): " -n 1 category
-                echo
-
-                # Add to brewfile (this would need proper parsing and insertion)
-                print_success "Would add: cask \"$cask\"  # $app"
-                print_warning "Manual addition recommended - add to appropriate section in brewfile"
-                echo "    cask \"$cask\"  # $app"
+            y|Y|"")
+                insert_into_brewfile "$cask" "$app" "$suggested"
+                echo -e "    ${GREEN}✓${NC} Added to ${suggested}"
+                (( added++ ))
+                ;;
+            c|C)
+                # Let user pick a different category
                 echo ""
+                local idx=1
+                for cat in "${CATEGORIES[@]}"; do
+                    printf "    ${DIM}%2d)${NC} %s\n" "$idx" "$cat"
+                    (( idx++ ))
+                done
+                echo -ne "    Category [1-${#CATEGORIES[@]}]: "
+                read -r cat_num
+                if [[ "$cat_num" =~ ^[0-9]+$ ]] && [ "$cat_num" -ge 1 ] && [ "$cat_num" -le ${#CATEGORIES[@]} ]; then
+                    local chosen="${CATEGORIES[$((cat_num - 1))]}"
+                    insert_into_brewfile "$cask" "$app" "$chosen"
+                    echo -e "    ${GREEN}✓${NC} Added to ${chosen}"
+                    (( added++ ))
+                else
+                    echo -e "    ${DIM}Invalid — skipped${NC}"
+                    (( skipped++ ))
+                fi
                 ;;
             i|I)
-                brew info --cask "$cask"
+                brew info --cask "$cask" 2>/dev/null | head -5 | sed 's/^/    /'
                 echo ""
+                # Re-prompt
+                echo -ne "    Add? [y/n] "
+                read -n 1 -r REPLY2
+                echo ""
+                if [[ "$REPLY2" =~ ^[Yy]$ ]]; then
+                    insert_into_brewfile "$cask" "$app" "$suggested"
+                    echo -e "    ${GREEN}✓${NC} Added to ${suggested}"
+                    (( added++ ))
+                else
+                    (( skipped++ ))
+                fi
                 ;;
             q|Q)
-                print_info "Exiting..."
-                return
+                break
                 ;;
             *)
-                print_info "Skipped"
+                (( skipped++ ))
                 ;;
         esac
     done
 
-    print_info "Commit your changes:"
-    echo "  cd $DOTFILES_DIR"
-    echo "  git add bootstrap/brewfile"
-    echo "  git commit -m 'Add new applications to Brewfile'"
+    echo ""
+    if [ $added -gt 0 ]; then
+        print_success "Added $added app(s) to Brewfile"
+        print_info "Run 'dotfiles review' to commit"
+    else
+        print_info "No apps added"
+    fi
 }
 
 ################################################################################
