@@ -495,6 +495,9 @@ dotfiles() {
         update)
             dotfiles-update "$@"
             ;;
+        push)
+            dotfiles-push "$@"
+            ;;
         st)
             dotfiles-status "$@"
             ;;
@@ -914,7 +917,22 @@ dotfiles-review() {
             echo ""
             new_ahead=$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)
             if [[ $new_ahead -gt 0 ]]; then
-                echo -e "  ${DIM}⇡ ${new_ahead} ahead of origin${NC}"
+                echo -ne "  ${DIM}⇡ ${new_ahead} ahead of origin${NC} — push? ${DIM}[Y/n]${NC} "
+                read -k 1 PUSH_REPLY
+                echo ""
+                case $PUSH_REPLY in
+                    [Nn])
+                        echo -e "  ${DIM}Skipped. Run 'dotfiles push' when ready.${NC}"
+                        ;;
+                    *)
+                        echo ""
+                        if git push --quiet; then
+                            echo -e "  ${GREEN}✓${NC}  Pushed to origin"
+                        else
+                            echo -e "  ${RED}✗${NC}  Push failed"
+                        fi
+                        ;;
+                esac
             fi
             ;;
         d)
@@ -965,7 +983,38 @@ dotfiles-update() {
 # Show dotfiles status
 dotfiles-status() {
     cd "$SYSTEM_DIR/dotfiles" || return
-    git status
+
+    local BOLD='\033[1m'
+    local DIM='\033[2m'
+    local GREEN='\033[0;32m'
+    local YELLOW='\033[1;33m'
+    local RED='\033[0;31m'
+    local NC='\033[0m'
+
+    local dirty ahead behind
+    dirty=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+    ahead=$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)
+    behind=$(git rev-list --count HEAD..@{u} 2>/dev/null || echo 0)
+
+    echo ""
+    if [[ $dirty -eq 0 && $ahead -eq 0 && $behind -eq 0 ]]; then
+        echo -e "  ${GREEN}✓${NC} Dotfiles are clean and up to date"
+    else
+        if [[ $dirty -gt 0 ]]; then
+            echo -e "  ${YELLOW}~${NC} ${dirty} uncommitted change(s)"
+            echo -e "  ${DIM}  Run 'dotfiles review' to commit${NC}"
+        fi
+        if [[ $ahead -gt 0 ]]; then
+            echo -e "  ${YELLOW}⇡${NC} ${ahead} commit(s) ahead of origin"
+            echo -e "  ${DIM}  Run 'dotfiles push' to sync${NC}"
+        fi
+        if [[ $behind -gt 0 ]]; then
+            echo -e "  ${RED}⇣${NC} ${behind} commit(s) behind origin"
+            echo -e "  ${DIM}  Run 'dotfiles update' to pull${NC}"
+        fi
+    fi
+    echo ""
+
     cd - > /dev/null || return
 }
 
@@ -978,6 +1027,29 @@ dotfiles-commit() {
     cd "$SYSTEM_DIR/dotfiles" || return
     git add .
     git commit -m "$1"
+    cd - > /dev/null || return
+}
+
+# Push dotfiles to origin
+dotfiles-push() {
+    cd "$SYSTEM_DIR/dotfiles" || return
+
+    local GREEN='\033[0;32m'
+    local RED='\033[0;31m'
+    local DIM='\033[2m'
+    local NC='\033[0m'
+
+    local ahead
+    ahead=$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)
+
+    if [[ $ahead -eq 0 ]]; then
+        echo -e "\n  ${GREEN}✓${NC} Already up to date with origin\n"
+    elif git push --quiet; then
+        echo -e "\n  ${GREEN}✓${NC} Pushed ${ahead} commit(s) to origin\n"
+    else
+        echo -e "\n  ${RED}✗${NC} Push failed\n"
+    fi
+
     cd - > /dev/null || return
 }
 
