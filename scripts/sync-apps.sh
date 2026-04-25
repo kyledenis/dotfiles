@@ -17,6 +17,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
 NC='\033[0m'
 
 # Directories
@@ -29,25 +31,36 @@ BREWFILE="$DOTFILES_DIR/bootstrap/brewfile"
 ################################################################################
 
 print_header() {
-    echo -e "\n${BLUE}===================================================${NC}"
-    echo -e "${BLUE}$1${NC}"
-    echo -e "${BLUE}===================================================${NC}\n"
+    local title="$1"
+    local width=70
+    local padding=$(( (width - ${#title} - 2) / 2 ))
+    echo ""
+    echo -e "${CYAN}╭$(printf '%*s' $width '' | tr ' ' '─')╮${NC}"
+    echo -e "${CYAN}│${NC}$(printf '%*s' $padding '')${BOLD}${title}${NC}$(printf '%*s' $((width - padding - ${#title})) '')${CYAN}│${NC}"
+    echo -e "${CYAN}╰$(printf '%*s' $width '' | tr ' ' '─')╯${NC}"
+    echo ""
+}
+
+print_section() {
+    local title="$1"
+    echo -e "  ${YELLOW}${BOLD}${title}${NC}"
+    echo -e "  ${DIM}$(printf '%*s' ${#title} '' | tr ' ' '─')${NC}"
 }
 
 print_success() {
-    echo -e "${GREEN}✓${NC} $1"
+    echo -e "  ${GREEN}✓${NC} $1"
 }
 
 print_error() {
-    echo -e "${RED}✗${NC} $1"
+    echo -e "  ${RED}✗${NC} $1"
 }
 
 print_warning() {
-    echo -e "${YELLOW}⚠${NC} $1"
+    echo -e "  ${YELLOW}⚠${NC} $1"
 }
 
 print_info() {
-    echo -e "${CYAN}ℹ${NC} $1"
+    echo -e "  ${DIM}$1${NC}"
 }
 
 # Check if app is in Brewfile
@@ -73,7 +86,7 @@ cask_exists() {
 ################################################################################
 
 audit() {
-    print_header "Auditing Installed Applications"
+    print_header "Brewfile Audit"
 
     # Get installed apps (excluding system apps)
     INSTALLED_APPS=$(ls -1 /Applications/ | grep ".app$" | sed 's/.app$//' | grep -v "^Safari$\|^Utilities$\|^Developer$\|^TestFlight$")
@@ -84,7 +97,9 @@ audit() {
     declare -a available_casks=()
     declare -a unavailable_casks=()
 
-    echo "Scanning $(echo "$INSTALLED_APPS" | wc -l) applications..."
+    local app_count
+    app_count=$(echo "$INSTALLED_APPS" | wc -l | tr -d ' ')
+    print_info "Scanning $app_count applications..."
     echo ""
 
     while IFS= read -r app; do
@@ -104,42 +119,19 @@ audit() {
         fi
     done <<< "$INSTALLED_APPS"
 
-    # Report
-    print_info "Summary:"
-    echo "  ✓ In Brewfile: ${#in_brewfile[@]}"
-    echo "  ⚠ Not in Brewfile: ${#not_in_brewfile[@]}"
-    echo "    ├─ Available as cask: ${#available_casks[@]}"
-    echo "    └─ Not available: ${#unavailable_casks[@]}"
+    # Summary
+    print_section "Summary"
+    echo ""
+    echo -e "    ${GREEN}${#in_brewfile[@]}${NC} tracked in Brewfile"
+    echo -e "    ${YELLOW}${#available_casks[@]}${NC} can be added ${DIM}(installed, available as cask)${NC}"
+    echo -e "    ${DIM}${#unavailable_casks[@]}${NC} not available via Homebrew"
     echo ""
 
-    if [ ${#available_casks[@]} -gt 0 ]; then
-        print_warning "Applications available as casks but not in Brewfile:"
-        for entry in "${available_casks[@]}"; do
-            cask="${entry%%|*}"
-            app="${entry##*|}"
-            echo "  • $app → cask \"$cask\""
-        done
-        echo ""
-        print_info "Run 'dotfiles add-apps' to add these interactively"
-        echo ""
-    fi
-
-    if [ ${#unavailable_casks[@]} -gt 0 ]; then
-        print_info "Applications not available via Homebrew:"
-        for app in "${unavailable_casks[@]}"; do
-            echo "  • $app"
-        done
-        echo ""
-    fi
-
-    # Check for apps in Brewfile but not installed
-    print_header "Checking Brewfile Apps Not Installed"
-
+    # Casks in Brewfile but not installed
     brewfile_casks=$(grep "^cask " "$BREWFILE" | sed 's/cask "\([^"]*\)".*/\1/')
 
     not_installed=()
     while IFS= read -r cask; do
-        # Convert cask name to potential app name
         app_name=$(echo "$cask" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++)sub(/./,toupper(substr($i,1,1)),$i)}1' | sed 's/ //g')
 
         if ! echo "$INSTALLED_APPS" | grep -qi "^$app_name$"; then
@@ -148,14 +140,53 @@ audit() {
     done <<< "$brewfile_casks"
 
     if [ ${#not_installed[@]} -gt 0 ]; then
-        print_warning "Casks in Brewfile but not installed (${#not_installed[@]}):"
-        for cask in "${not_installed[@]}"; do
-            echo "  • $cask"
+        echo -e "    ${RED}${#not_installed[@]}${NC} in Brewfile but not installed"
+        echo ""
+    fi
+
+    # Available to add
+    if [ ${#available_casks[@]} -gt 0 ]; then
+        print_section "Can be added"
+        echo ""
+        for entry in "${available_casks[@]}"; do
+            cask="${entry%%|*}"
+            app="${entry##*|}"
+            printf "    ${GREEN}+${NC} %-24s ${DIM}cask \"%s\"${NC}\n" "$app" "$cask"
         done
         echo ""
-        print_info "Run 'brew bundle --file=$BREWFILE' to install missing apps"
-    else
-        print_success "All Brewfile casks are installed!"
+        print_info "Run 'dotfiles add-apps' to add these interactively"
+        echo ""
+    fi
+
+    # Stale Brewfile entries
+    if [ ${#not_installed[@]} -gt 0 ]; then
+        print_section "Stale Brewfile entries"
+        echo -e "  ${DIM}In Brewfile but not installed — remove or reinstall${NC}"
+        echo ""
+        for cask in "${not_installed[@]}"; do
+            echo -e "    ${RED}✗${NC} $cask"
+        done
+        echo ""
+        print_info "Run 'brew bundle --file=$BREWFILE' to install, or remove from Brewfile"
+        echo ""
+    fi
+
+    # Not available via Homebrew (collapsed by default)
+    if [ ${#unavailable_casks[@]} -gt 0 ]; then
+        print_section "Not available via Homebrew"
+        echo -e "  ${DIM}App Store, direct downloads, or bundled apps — no action needed${NC}"
+        echo ""
+        # Show in compact columns
+        local col=0
+        for app in "${unavailable_casks[@]}"; do
+            printf "    ${DIM}%-28s${NC}" "$app"
+            col=$(( col + 1 ))
+            if [ $(( col % 2 )) -eq 0 ]; then
+                echo ""
+            fi
+        done
+        [ $(( col % 2 )) -ne 0 ] && echo ""
+        echo ""
     fi
 }
 
