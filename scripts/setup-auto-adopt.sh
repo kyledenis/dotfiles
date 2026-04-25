@@ -170,36 +170,34 @@ uninstall_daemon() {
 }
 
 show_status() {
-    echo "Auto-Adopt Daemon Status"
-    echo "========================"
+    local BOLD='\033[1m'
+    local DIM='\033[2m'
+
+    echo ""
+    echo -e "  ${BOLD}Auto-Adopt Daemon${NC}"
     echo ""
 
     # Check if plist is installed
     if [[ -f "$PLIST_DST" ]]; then
-        print_success "Plist installed: $PLIST_DST"
+        # Check if registered in launchd
+        if launchctl print "$LAUNCHD_DOMAIN/$PLIST_LABEL" &>/dev/null; then
+            print_success "Loaded and scheduled (every 4h)"
+        else
+            print_warning "Installed but not loaded"
+            echo -e "    ${DIM}Run 'dotfiles install' to start${NC}"
+        fi
     else
-        print_error "Plist not installed"
-        echo ""
-        echo "Run './setup-auto-adopt.sh install' to install"
+        print_error "Not installed"
+        echo -e "    ${DIM}Run 'dotfiles install' to set up${NC}"
         return 1
     fi
-
-    # Check if registered in launchd
-    if launchctl print "$LAUNCHD_DOMAIN/$PLIST_LABEL" &>/dev/null; then
-        print_success "Daemon is loaded and scheduled"
-    else
-        print_warning "Daemon is installed but not loaded"
-        echo "  Try: dotfiles install"
-    fi
-
-    echo ""
 
     # Show last run time from log
     if [[ -f "$LOG_FILE" ]]; then
         local last_run
         last_run=$(grep "Scan started" "$LOG_FILE" 2>/dev/null | tail -1 | cut -d']' -f1 | tr -d '[')
         if [[ -n "$last_run" ]]; then
-            echo "Last run: $last_run"
+            echo -e "  ${DIM}Last run: $last_run${NC}"
         fi
 
         # Show recent activity
@@ -207,24 +205,24 @@ show_status() {
         recent_adopts=$(grep "ADOPTED:" "$LOG_FILE" 2>/dev/null | tail -5)
         if [[ -n "$recent_adopts" ]]; then
             echo ""
-            echo "Recent adoptions:"
-            echo "$recent_adopts" | sed 's/^/  /'
+            echo -e "  ${DIM}Recent adoptions:${NC}"
+            echo "$recent_adopts" | sed "s/^/    /"
         fi
     else
-        echo "No log file yet (daemon hasn't run)"
+        echo -e "  ${DIM}No runs yet${NC}"
     fi
 
-    echo ""
-
-    # Show temp log if exists
+    # Show errors if any
     if [[ -f "/tmp/dotfiles-auto-adopt-stderr.log" ]]; then
         local errors
         errors=$(cat /tmp/dotfiles-auto-adopt-stderr.log 2>/dev/null)
         if [[ -n "$errors" ]]; then
-            print_warning "Errors in /tmp/dotfiles-auto-adopt-stderr.log:"
-            echo "$errors" | tail -5 | sed 's/^/  /'
+            echo ""
+            print_warning "Errors:"
+            echo "$errors" | tail -5 | sed 's/^/    /'
         fi
     fi
+    echo ""
 }
 
 # ============================================================================

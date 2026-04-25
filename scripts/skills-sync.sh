@@ -66,11 +66,6 @@ TOOL_DEST[cursor]="$HOME/.cursor/skills"
 TOOL_LAYOUT[cursor]="flat"
 TOOL_FIELDS[cursor]="name description"
 
-# Hermes uses categorized layout — uncomment when ready
-# TOOL_DEST[hermes]="$HOME/.hermes/skills"
-# TOOL_LAYOUT[hermes]="categorized"
-# TOOL_FIELDS[hermes]="name description version"
-
 TOOLS=(claude cursor)
 
 ################################################################################
