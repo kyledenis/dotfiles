@@ -218,6 +218,22 @@ show_ssh() {
     echo ""
 }
 
+show_transfer() {
+    print_section "File Transfer (arc-reactor)"
+    echo ""
+    echo -e "  ${DIM}Transfer${NC}"
+    print_cmd "arc push <file> [dest]" "Upload to server (shortcut, fuzzy, or path)"
+    print_cmd "arc pull [source] [local]" "Download from server"
+    echo ""
+    echo -e "  ${DIM}Browse${NC}"
+    print_cmd "arc ls [path]" "Browse server filesystem interactively"
+    print_cmd "arc df" "Server disk usage"
+    echo ""
+    echo -e "  ${DIM}Shortcuts: movies, tv, herald, configs, home${NC}"
+    echo -e "  ${DIM}Omit path to browse with fzf. Use fragments for fuzzy match.${NC}"
+    echo ""
+}
+
 show_all() {
     print_header "ROGUE - Dotfiles Quick Reference"
 
@@ -228,6 +244,7 @@ show_all() {
     show_git
     show_skills
     show_ssh
+    show_transfer
     show_network
     show_system
     show_dotfiles
@@ -248,6 +265,7 @@ show_help() {
     echo "  git         Git shortcuts"
     echo "  skills      AI skill management"
     echo "  ssh         SSH key management"
+    echo "  transfer    File transfer (arc-reactor)"
     echo "  network     Network utilities"
     echo "  system      System utilities"
     echo "  dotfiles    Dotfiles management commands"
@@ -304,6 +322,10 @@ case "${1:-all}" in
     ssh)
         print_header "SSH Keys"
         show_ssh
+        ;;
+    transfer|arc|tr)
+        print_header "File Transfer"
+        show_transfer
         ;;
     skills|sk)
         print_header "AI Skills"

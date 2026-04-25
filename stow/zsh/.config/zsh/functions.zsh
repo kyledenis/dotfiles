@@ -1247,6 +1247,344 @@ skills-sync() {
     "$SYSTEM_DIR/dotfiles/scripts/skills-sync.sh" "$@"
 }
 
+# File Transfer (arc-reactor)
+# ============================================================================
+
+declare -A ARC_SHORTCUTS=(
+    [movies]="/media/myfiles/movies"
+    [tv]="/media/myfiles/tv"
+    [herald]="/home/herald"
+    [configs]="/home/kyledenis/configs"
+    [home]="/home/kyledenis"
+)
+ARC_DEFAULT="/media/myfiles"
+ARC_HOST="arc-reactor"
+
+# Resolve a user-provided string to a full remote path.
+# Resolution order: raw path → shortcut/subpath → exact shortcut → fuzzy search
+_arc_resolve_path() {
+    local input="$1"
+
+    [[ -z "$input" ]] && return 1
+
+    # Raw absolute path
+    if [[ "$input" == /* ]]; then
+        echo "$input"
+        return 0
+    fi
+
+    # Shortcut (with optional sub-path)
+    local prefix="${input%%/*}"
+    if (( ${+ARC_SHORTCUTS[$prefix]} )); then
+        local base="${ARC_SHORTCUTS[$prefix]}"
+        if [[ "$input" == */* ]]; then
+            echo "${base}/${input#*/}"
+        else
+            echo "$base"
+        fi
+        return 0
+    fi
+
+    # Fuzzy search remote directories
+    local matches
+    matches=$(ssh "$ARC_HOST" "find '$ARC_DEFAULT' -maxdepth 4 -type d -iname '*${input}*' 2>/dev/null" 2>/dev/null)
+
+    [[ -z "$matches" ]] && return 1
+
+    local count
+    count=$(echo "$matches" | wc -l | tr -d ' ')
+
+    if (( count == 1 )); then
+        echo "$matches"
+        return 0
+    fi
+
+    # Multiple matches — quick fzf picker
+    local pick
+    pick=$(echo "$matches" | fzf --height=40% --reverse \
+        --prompt="Multiple matches > " \
+        --header="$count matches for '$input'")
+    [[ -n "$pick" ]] && echo "$pick" || return 1
+}
+
+# Interactive fzf browser for remote directories/files.
+# $1 = starting directory  $2 = mode: "dir" (push) or "file" (pull)
+# Navigation: enter = open dir / select file, tab = select highlighted item, esc = cancel
+_arc_browse_remote() {
+    local start_dir="${1:-$ARC_DEFAULT}"
+    local mode="${2:-dir}"
+
+    if ! ssh -o ConnectTimeout=3 "$ARC_HOST" true 2>/dev/null; then
+        echo "arc: cannot connect to $ARC_HOST" >&2
+        return 1
+    fi
+
+    # Listing script — called by the fzf loop to populate entries
+    local list_script
+    list_script=$(mktemp)
+    cat > "$list_script" << 'LISTEOF'
+#!/usr/bin/env bash
+host="$1"; dir="$2"; mode="$3"; shortcuts_file="$4"
+
+# Pinned shortcuts
+[[ -f "$shortcuts_file" ]] && cat "$shortcuts_file"
+echo "  ──────────────────────────────────"
+
+# Parent directory
+[[ "$dir" != "/" ]] && echo "  ../"
+
+# Remote listing: directories first, then files
+listing=$(ssh "$host" "ls -1p '$dir' 2>/dev/null")
+
+# Directories
+echo "$listing" | grep '/$' | while IFS= read -r d; do
+    echo "  $d"
+done
+
+# Files (only in file/pull mode)
+if [[ "$mode" == "file" ]]; then
+    echo "$listing" | grep -v '/$' | while IFS= read -r f; do
+        [[ -n "$f" ]] && echo "  $f"
+    done
+fi
+
+# Select-current-dir entry (only in dir/push mode)
+[[ "$mode" == "dir" ]] && echo "  > select: $dir"
+LISTEOF
+    chmod +x "$list_script"
+
+    # Pinned shortcuts file
+    local shortcuts_file
+    shortcuts_file=$(mktemp)
+    for key in ${(@ko)ARC_SHORTCUTS}; do
+        printf "  %-12s %s\n" "[$key]" "${ARC_SHORTCUTS[$key]}"
+    done > "$shortcuts_file"
+
+    # Preview script — shows directory contents or file info
+    local preview_script
+    preview_script=$(mktemp)
+    cat > "$preview_script" << 'PREVEOF'
+#!/usr/bin/env bash
+host="$1"; cdir="$2"; line="$3"
+entry=$(echo "$line" | sed 's/^  //')
+
+case "$entry" in
+    \[*\]*)
+        dir=$(echo "$entry" | awk '{print $NF}')
+        count=$(ssh "$host" "ls -1 '$dir' 2>/dev/null | wc -l" 2>/dev/null)
+        echo "$dir"
+        echo "$count items"
+        echo ""
+        ssh "$host" "ls -1p '$dir' 2>/dev/null | head -30"
+        ;;
+    "../")
+        parent=$(dirname "$cdir")
+        ssh "$host" "ls -1p '$parent' 2>/dev/null | head -30"
+        ;;
+    "> select:"*)
+        echo "Use this directory as destination"
+        ;;
+    "──"*) ;;
+    */)
+        name="${entry%/}"
+        full="${cdir%/}/$name"
+        count=$(ssh "$host" "ls -1 '$full' 2>/dev/null | wc -l" 2>/dev/null)
+        echo "$full"
+        echo "$count items"
+        echo ""
+        ssh "$host" "ls -1p '$full' 2>/dev/null | head -30"
+        ;;
+    *)
+        ssh "$host" "ls -lh '${cdir%/}/$entry' 2>/dev/null"
+        ;;
+esac
+PREVEOF
+    chmod +x "$preview_script"
+
+    local current="$start_dir"
+
+    while true; do
+        local result
+        result=$("$list_script" "$ARC_HOST" "$current" "$mode" "$shortcuts_file" | \
+            fzf --reverse \
+                --height=70% \
+                --header="  $current" \
+                --preview="bash '$preview_script' '$ARC_HOST' '$current' {}" \
+                --preview-window=right:40%:wrap \
+                --prompt="  arc > " \
+                --expect=tab \
+                --info=hidden)
+
+        local key line entry
+        key=$(echo "$result" | head -1)
+        line=$(echo "$result" | tail -1)
+
+        # Cancelled (esc or empty)
+        if [[ -z "$line" && -z "$key" ]]; then
+            rm -f "$list_script" "$shortcuts_file" "$preview_script"
+            return 1
+        fi
+
+        # Strip leading indent
+        entry=$(echo "$line" | sed 's/^  //')
+
+        # Tab = select whatever is highlighted and return it
+        if [[ "$key" == "tab" ]]; then
+            rm -f "$list_script" "$shortcuts_file" "$preview_script"
+            case "$entry" in
+                \[*\]*) echo "$(echo "$entry" | awk '{print $NF}')" ;;
+                "../")  echo "$(dirname "$current")" ;;
+                */)     echo "${current%/}/${entry%/}" ;;
+                "> select:"*) echo "$current" ;;
+                "──"*)  continue ;;
+                *)      echo "${current%/}/${entry}" ;;
+            esac
+            return 0
+        fi
+
+        # Enter = navigate into dirs, select files
+        case "$entry" in
+            \[*\]*)
+                # Pin — jump to that directory
+                current=$(echo "$entry" | awk '{print $NF}')
+                ;;
+            "──"*) ;;
+            "../")
+                [[ "$current" != "/" ]] && current="$(dirname "$current")"
+                ;;
+            "> select:"*)
+                rm -f "$list_script" "$shortcuts_file" "$preview_script"
+                echo "$current"
+                return 0
+                ;;
+            */)
+                # Directory — enter it
+                current="${current%/}/${entry%/}"
+                ;;
+            *)
+                # File — select it
+                rm -f "$list_script" "$shortcuts_file" "$preview_script"
+                echo "${current%/}/${entry}"
+                return 0
+                ;;
+        esac
+    done
+}
+
+# Interactive local file/directory picker
+_arc_browse_local() {
+    local start_dir="${1:-.}"
+    local selection
+    selection=$(find "$start_dir" -maxdepth 3 \( -type f -o -type d \) 2>/dev/null | \
+        fzf --height=50% --reverse \
+            --header="Select local file or directory" \
+            --preview='[[ -d {} ]] && ls -lh {} | head -20 || ls -lh {}' \
+            --preview-window=right:40%:wrap \
+            --prompt="local > ")
+    [[ -n "$selection" ]] && echo "$selection" || return 1
+}
+
+_arc_push() {
+    local local_path="$1"
+    local remote_dest="$2"
+
+    if [[ -z "$local_path" ]]; then
+        local_path=$(_arc_browse_local) || return 1
+    fi
+
+    if [[ ! -e "$local_path" ]]; then
+        echo "arc push: '$local_path' not found" >&2
+        return 1
+    fi
+
+    local remote
+    if [[ -n "$remote_dest" ]]; then
+        remote=$(_arc_resolve_path "$remote_dest")
+        if [[ -z "$remote" ]]; then
+            echo "No match for '$remote_dest'. Opening browser..." >&2
+            remote=$(_arc_browse_remote "$ARC_DEFAULT" dir) || return 1
+        fi
+    else
+        remote=$(_arc_browse_remote "$ARC_DEFAULT" dir) || return 1
+    fi
+
+    echo "Pushing $(basename "$local_path") → ${ARC_HOST}:${remote}/"
+    rsync -ah --progress --partial "$local_path" "${ARC_HOST}:${remote}/"
+}
+
+_arc_pull() {
+    local remote_source="$1"
+    local local_dest="${2:-.}"
+
+    local remote
+    if [[ -n "$remote_source" ]]; then
+        remote=$(_arc_resolve_path "$remote_source")
+        if [[ -z "$remote" ]]; then
+            echo "No match for '$remote_source'. Opening browser..." >&2
+            remote=$(_arc_browse_remote "$ARC_DEFAULT" file) || return 1
+        else
+            local is_dir
+            is_dir=$(ssh "$ARC_HOST" "[[ -d '$remote' ]] && echo yes || echo no" 2>/dev/null)
+            if [[ "$is_dir" == "yes" ]]; then
+                remote=$(_arc_browse_remote "$remote" file) || return 1
+            fi
+        fi
+    else
+        remote=$(_arc_browse_remote "$ARC_DEFAULT" file) || return 1
+    fi
+
+    echo "Pulling $(basename "$remote") → ${local_dest}/"
+    rsync -ah --progress --partial "${ARC_HOST}:${remote}" "${local_dest}/"
+}
+
+_arc_ls() {
+    local target="$1"
+    local start_dir
+
+    if [[ -n "$target" ]]; then
+        start_dir=$(_arc_resolve_path "$target")
+        if [[ -z "$start_dir" ]]; then
+            echo "No match for '$target'. Opening browser..." >&2
+            start_dir="$ARC_DEFAULT"
+        fi
+    else
+        start_dir="$ARC_DEFAULT"
+    fi
+
+    local result
+    result=$(_arc_browse_remote "$start_dir" file)
+    [[ -n "$result" ]] && echo "$result"
+}
+
+arc() {
+    local cmd="${1:-help}"
+    shift 2>/dev/null || true
+
+    case "$cmd" in
+        push)  _arc_push "$@" ;;
+        pull)  _arc_pull "$@" ;;
+        ls)    _arc_ls "$@" ;;
+        df)    ssh "$ARC_HOST" "df -h / | tail -1" ;;
+        help|--help|-h)
+            echo "Usage: arc <command> [args]"
+            echo ""
+            echo "Commands:"
+            echo "  push <file> [dest]    Upload to server"
+            echo "  pull [source] [local] Download from server"
+            echo "  ls [path]             Browse server filesystem"
+            echo "  df                    Server disk usage"
+            echo ""
+            echo "Shortcuts: ${(kj:, :)ARC_SHORTCUTS}"
+            echo "Omit path args to browse with fzf. Use fragments for fuzzy match."
+            ;;
+        *)
+            echo "arc: unknown command '$cmd'"
+            echo "Run 'arc help' for usage"
+            return 1
+            ;;
+    esac
+}
+
 # macOS Specific Functions
 # ============================================================================
 
