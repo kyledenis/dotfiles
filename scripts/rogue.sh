@@ -74,6 +74,7 @@ show_dotfiles() {
     echo -e "  ${DIM}Brewfile sync${NC}"
     print_cmd "dotfiles audit" "Compare installed apps vs Brewfile"
     print_cmd "dotfiles add-apps" "Interactively add installed apps to Brewfile"
+    print_cmd "dotfiles remove-apps" "Remove stale entries from Brewfile"
     print_cmd "dotfiles sync" "Full sync: audit, add, commit"
     printf "    %-20s ${DIM}%s${NC}\n" "" "Run after installing or removing apps via brew"
     echo ""

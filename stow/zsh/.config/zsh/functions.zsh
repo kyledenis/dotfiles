@@ -522,6 +522,9 @@ dotfiles() {
         add-apps)
             dotfiles-add-apps "$@"
             ;;
+        remove-apps)
+            dotfiles-remove-apps "$@"
+            ;;
         brew-update)
             dotfiles-brew-update "$@"
             ;;
@@ -1131,9 +1134,15 @@ dotfiles-audit() {
 
 # Add new applications to Brewfile
 dotfiles-add-apps() {
-    echo "Adding new applications..."
     cd "$SYSTEM_DIR/dotfiles" || return
     ./scripts/sync-apps.sh --add
+    cd - > /dev/null || return
+}
+
+# Remove stale apps from Brewfile
+dotfiles-remove-apps() {
+    cd "$SYSTEM_DIR/dotfiles" || return
+    ./scripts/sync-apps.sh --remove "$@"
     cd - > /dev/null || return
 }
 
