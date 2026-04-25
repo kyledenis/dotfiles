@@ -144,6 +144,7 @@ cask "arc"                    # Modern browser
 cask "brave-browser"          # Privacy-focused browser
 cask "firefox"                # Mozilla Firefox
 cask "zen"                    # Zen browser
+cask "google-chrome"  # Google Chrome
 
 # Development & IDEs
 cask "android-studio"         # Android development
@@ -156,17 +157,20 @@ cask "ghostty"                # GPU-accelerated terminal
 cask "postman"                # API development
 cask "visual-studio-code"     # VS Code
 cask "windsurf"               # Development tool
+cask "codex"  # Codex
 
 # AI Tools
 cask "chatgpt"                # ChatGPT desktop
 cask "chatgpt-atlas"          # ChatGPT Atlas
 cask "claude"                 # Claude desktop
 cask "ollama"                 # Run LLMs locally
+cask "lm-studio"  # LM Studio
 
 # Communication
 cask "discord"                # Community chat
 cask "signal"                 # Secure messaging
 cask "whatsapp"               # WhatsApp desktop
+cask "telegram"  # Telegram
 
 # Productivity & Organization
 cask "fantastical"            # Calendar app
@@ -175,6 +179,8 @@ cask "notion"                 # All-in-one workspace
 cask "obsidian"               # Note-taking (great with PARAS)
 cask "paper"                  # Facebook Paper
 cask "raycast"                # Launcher & productivity
+cask "libreoffice"  # LibreOffice
+cask "wispr-flow"  # Wispr Flow
 
 # Window Management & UI
 cask "alt-tab"                # Windows-style alt-tab
@@ -182,6 +188,8 @@ cask "bartender"              # Menu bar organization
 cask "bettertouchtool"        # Gestures & automation
 cask "rectangle"              # Window snapping
 cask "swish"                  # Trackpad gestures
+cask "lookaway"  # LookAway
+cask "dockdoor"  # DockDoor
 
 # Utilities - System & Power
 cask "1password"              # Password manager
@@ -209,6 +217,7 @@ cask "sf-symbols"             # Apple SF Symbols
 cask "stats"                  # System monitor menubar
 cask "suspicious-package"     # Inspect installer packages
 cask "touchdesigner"          # Visual development
+cask "launchos"  # LaunchOS
 
 # Utilities - Screenshots & Media
 cask "cleanshot"              # Screenshot tool
@@ -216,6 +225,7 @@ cask "imageoptim"             # Image compression
 cask "pixelsnap"              # Screen measurement tool
 cask "superwhisper"           # Voice transcription
 cask "textsniper"             # OCR tool
+cask "shottr"  # Shottr
 
 # Design & Creative
 cask "canva"                  # Design platform
@@ -223,6 +233,8 @@ cask "figma"                  # Interface design
 cask "gimp"                   # Image editor
 cask "rive"                   # Animation tool
 cask "sketch"                 # Design tool
+cask "spatial"  # Spatial
+cask "affinity"  # Affinity
 
 # Media - Video & Audio
 cask "audacity"               # Audio editor
@@ -230,6 +242,7 @@ cask "capcut"                 # Video editor
 cask "iina"                   # Modern media player
 cask "spotify"                # Music streaming
 cask "vlc"                    # Media player
+cask "jellyfin-media-player"  # Jellyfin Media Player
 
 # Reading & Reference
 cask "anki"                   # Flashcard app
