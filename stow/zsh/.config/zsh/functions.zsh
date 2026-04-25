@@ -1016,7 +1016,7 @@ dotfiles-status() {
         fi
         if [[ $ahead -gt 0 ]]; then
             echo -e "${YELLOW}⇡${NC} ${ahead} commit(s) ahead — run 'dotfiles push'"
-            git log --oneline @{u}..HEAD 2>/dev/null | while IFS= read -r line; do
+            git log --format='%s' @{u}..HEAD 2>/dev/null | while IFS= read -r line; do
                 echo -e "  ${DIM}${line}${NC}"
             done
         fi
