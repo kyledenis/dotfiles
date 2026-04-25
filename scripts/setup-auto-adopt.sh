@@ -25,8 +25,10 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOTFILES_DIR="$(dirname "$SCRIPT_DIR")"
 PLIST_NAME="com.kyledenis.dotfiles.auto-adopt.plist"
+PLIST_LABEL="com.kyledenis.dotfiles.auto-adopt"
 PLIST_SRC="$DOTFILES_DIR/bootstrap/launchd/$PLIST_NAME"
 PLIST_DST="$HOME/Library/LaunchAgents/$PLIST_NAME"
+LAUNCHD_DOMAIN="gui/$(id -u)"
 STATE_DIR="$HOME/.local/state/dotfiles"
 LOG_FILE="$STATE_DIR/auto-adopt.log"
 
@@ -71,8 +73,8 @@ install_daemon() {
     cp -R "$SCRIPT_DIR/patterns/"* "$RUNTIME_DATA_DIR/patterns/"
     print_success "Copied script and patterns to $RUNTIME_DATA_DIR"
 
-    # Unload existing if present (ignore errors)
-    launchctl unload "$PLIST_DST" 2>/dev/null || true
+    # Remove existing service if registered (ignore errors)
+    launchctl bootout "$LAUNCHD_DOMAIN/$PLIST_LABEL" 2>/dev/null || true
 
     # Generate plist with correct runtime path
     cat > "$PLIST_DST" << EOF
@@ -121,8 +123,8 @@ install_daemon() {
 </plist>
 EOF
 
-    # Load the daemon
-    if launchctl load "$PLIST_DST"; then
+    # Bootstrap the daemon into launchd
+    if launchctl bootstrap "$LAUNCHD_DOMAIN" "$PLIST_DST"; then
         print_success "Auto-adopt daemon installed and started"
         echo ""
         echo "The daemon will run:"
@@ -135,7 +137,7 @@ EOF
         echo "Check status with: dotfiles status"
         echo "View logs with:    dotfiles log"
     else
-        print_error "Failed to load daemon"
+        print_error "Failed to bootstrap daemon"
         exit 1
     fi
 }
@@ -143,10 +145,8 @@ EOF
 uninstall_daemon() {
     echo "Uninstalling auto-adopt daemon..."
 
-    # Unload if running
-    if launchctl list 2>/dev/null | grep -q "dotfiles.auto-adopt"; then
-        launchctl unload "$PLIST_DST" 2>/dev/null || true
-    fi
+    # Bootout if registered
+    launchctl bootout "$LAUNCHD_DOMAIN/$PLIST_LABEL" 2>/dev/null || true
 
     # Remove plist
     if [[ -f "$PLIST_DST" ]]; then
@@ -184,12 +184,12 @@ show_status() {
         return 1
     fi
 
-    # Check if loaded in launchctl
-    if launchctl list 2>/dev/null | grep -q "dotfiles.auto-adopt"; then
+    # Check if registered in launchd
+    if launchctl print "$LAUNCHD_DOMAIN/$PLIST_LABEL" &>/dev/null; then
         print_success "Daemon is loaded and scheduled"
     else
         print_warning "Daemon is installed but not loaded"
-        echo "  Try: launchctl load $PLIST_DST"
+        echo "  Try: dotfiles install"
     fi
 
     echo ""
