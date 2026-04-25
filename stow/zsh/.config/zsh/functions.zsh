@@ -535,35 +535,7 @@ dotfiles() {
             skills-sync "$@"
             ;;
         help|--help|-h|*)
-            echo "dotfiles - Unified dotfiles management"
-            echo ""
-            echo "Auto-adopt (background daemon):"
-            echo "  status      Check if daemon is running"
-            echo "  log [n]     Show last n log entries (default 20)"
-            echo "  run-now     Manually trigger auto-adopt"
-            echo "  dry-run     Preview what would be adopted"
-            echo "  install     Install the auto-adopt daemon"
-            echo "  uninstall   Remove the auto-adopt daemon"
-            echo ""
-            echo "Manual management:"
-            echo "  review      Review and commit pending changes"
-            echo "  add         Add a file to stow management"
-            echo "  update      Pull latest and re-stow"
-            echo "  st          Show git status"
-            echo "  commit      Commit dotfiles changes"
-            echo ""
-            echo "App sync:"
-            echo "  audit       Compare installed apps vs Brewfile"
-            echo "  add-apps    Add new apps to Brewfile"
-            echo "  sync        Full sync workflow"
-            echo ""
-            echo "SSH keys:"
-            echo "  ssh-create  Create and register a new SSH key"
-            echo "  ssh-list    List all managed SSH keys"
-            echo ""
-            echo "AI skills:"
-            echo "  skills-create  Create a new AI agent skill"
-            echo "  skills-sync    Sync skills to all AI tools"
+            rogue dotfiles
             ;;
     esac
 }
