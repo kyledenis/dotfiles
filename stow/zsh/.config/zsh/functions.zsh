@@ -209,7 +209,14 @@ killport() {
         echo "Usage: killport <port-number>"
         return 1
     fi
-    lsof -ti :"$1" | xargs kill -9
+    local pids
+    pids=$(lsof -ti :"$1" 2>/dev/null)
+    if [[ -z "$pids" ]]; then
+        echo "No process found on port $1"
+        return 1
+    fi
+    echo "$pids" | xargs kill -9
+    echo "Killed process(es) on port $1"
 }
 
 # System Functions
@@ -257,14 +264,16 @@ cleanup() {
         esac
     done
 
+    local BOLD='\033[1m' DIM='\033[2m' GREEN='\033[0;32m' YELLOW='\033[1;33m' NC='\033[0m'
+
     if $dry_run; then
-        echo "=== DRY RUN MODE - No files will be deleted ==="
+        echo -e "${YELLOW}⚠${NC} Dry run — no files will be deleted"
         echo ""
     fi
 
     # Homebrew cleanup (always safe)
     if command -v brew >/dev/null; then
-        echo "📦 Homebrew cleanup..."
+        echo -e "${BOLD}Homebrew${NC} cleanup..."
         if $dry_run; then
             brew cleanup --dry-run 2>/dev/null | head -20
             echo "  (showing first 20 items)"
@@ -288,12 +297,12 @@ cleanup() {
     done
 
     if $is_dangerous; then
-        echo "⚠️  Skipping Python cache cleanup (running from system directory: $cwd)"
-        echo "   Run from a project directory to clean Python caches"
+        echo -e "${YELLOW}⚠${NC} Skipping Python cache cleanup (system directory: $cwd)"
+        echo -e "  ${DIM}Run from a project directory to clean Python caches${NC}"
     else
         # Check if this looks like a Python project
         if [[ -f "setup.py" ]] || [[ -f "pyproject.toml" ]] || [[ -f "requirements.txt" ]] || [[ -d "venv" ]] || [[ -d ".venv" ]]; then
-            echo "🐍 Python cache cleanup (current directory only)..."
+            echo -e "${BOLD}Python${NC} cache cleanup (current directory)..."
             local pycache_count=$(find . -maxdepth 5 -type d -name "__pycache__" 2>/dev/null | wc -l | tr -d ' ')
             local pyc_count=$(find . -maxdepth 5 -type f -name "*.pyc" 2>/dev/null | wc -l | tr -d ' ')
 
@@ -311,14 +320,14 @@ cleanup() {
                 echo "   Nothing to clean"
             fi
         else
-            echo "🐍 Skipping Python cleanup (not a Python project directory)"
+            echo -e "${DIM}Python — not a project directory, skipping${NC}"
         fi
     fi
     echo ""
 
     # macOS caches - only with --all flag due to side effects
     if $aggressive; then
-        echo "🍎 macOS cache cleanup..."
+        echo -e "${BOLD}macOS${NC} cache cleanup..."
         local cache_size=$(du -sh ~/Library/Caches 2>/dev/null | cut -f1)
         echo "   Cache size: $cache_size"
 
@@ -348,7 +357,7 @@ cleanup() {
     if command -v docker >/dev/null; then
         # Check if Docker daemon is running
         if docker info >/dev/null 2>&1; then
-            echo "🐳 Docker cleanup..."
+            echo -e "${BOLD}Docker${NC} cleanup..."
 
             if $aggressive; then
                 # Aggressive: remove ALL unused images
@@ -383,15 +392,15 @@ cleanup() {
                 fi
             fi
         else
-            echo "🐳 Docker: daemon not running, skipping"
+            echo -e "${DIM}Docker — daemon not running, skipping${NC}"
         fi
         echo ""
     fi
 
     if $dry_run; then
-        echo "=== DRY RUN COMPLETE - Run without --dry-run to execute ==="
+        echo -e "${DIM}Dry run complete — run without --dry-run to execute${NC}"
     else
-        echo "✅ Cleanup complete!"
+        echo -e "${GREEN}✓${NC} Cleanup complete"
     fi
 }
 
@@ -489,6 +498,9 @@ dotfiles() {
             "$SYSTEM_DIR/dotfiles/scripts/setup-auto-adopt.sh" uninstall
             ;;
         # Existing commands
+        packages|pkg)
+            dotfiles-packages "$@"
+            ;;
         add)
             dotfiles-add "$@"
             ;;
@@ -996,37 +1008,66 @@ dotfiles-status() {
     ahead=$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)
     behind=$(git rev-list --count HEAD..@{u} 2>/dev/null || echo 0)
 
-    echo ""
     if [[ $dirty -eq 0 && $ahead -eq 0 && $behind -eq 0 ]]; then
-        echo -e "  ${GREEN}✓${NC} Dotfiles are clean and up to date"
+        echo -e "${GREEN}✓${NC} Dotfiles are clean and up to date"
     else
         if [[ $dirty -gt 0 ]]; then
-            echo -e "  ${YELLOW}~${NC} ${dirty} uncommitted change(s)"
-            echo -e "  ${DIM}  Run 'dotfiles review' to commit${NC}"
+            echo -e "${YELLOW}~${NC} ${dirty} uncommitted change(s) — run 'dotfiles review'"
         fi
         if [[ $ahead -gt 0 ]]; then
-            echo -e "  ${YELLOW}⇡${NC} ${ahead} commit(s) ahead of origin"
-            echo -e "  ${DIM}  Run 'dotfiles push' to sync${NC}"
+            echo -e "${YELLOW}⇡${NC} ${ahead} commit(s) ahead — run 'dotfiles push'"
         fi
         if [[ $behind -gt 0 ]]; then
-            echo -e "  ${RED}⇣${NC} ${behind} commit(s) behind origin"
-            echo -e "  ${DIM}  Run 'dotfiles update' to pull${NC}"
+            echo -e "${RED}⇣${NC} ${behind} commit(s) behind — run 'dotfiles update'"
         fi
     fi
-    echo ""
 
     cd - > /dev/null || return
 }
 
-# Commit dotfiles changes
+# Commit dotfiles changes (with preview)
 dotfiles-commit() {
     if [ -z "$1" ]; then
-        echo "Usage: dotfiles-commit <message>"
+        echo "Usage: dotfiles commit <message>"
         return 1
     fi
     cd "$SYSTEM_DIR/dotfiles" || return
-    git add .
-    git commit -m "$1"
+
+    local DIM='\033[2m' GREEN='\033[0;32m' YELLOW='\033[1;33m' RED='\033[0;31m' NC='\033[0m'
+
+    local changes
+    changes=$(git status --porcelain 2>/dev/null)
+    if [[ -z "$changes" ]]; then
+        echo -e "${GREEN}✓${NC} Nothing to commit"
+        cd - > /dev/null || return
+        return 0
+    fi
+
+    echo -e "${DIM}Changes to commit:${NC}"
+    echo "$changes" | while IFS= read -r line; do
+        local st="${line:0:2}" file="${line:3}"
+        case "$st" in
+            " M"|"M "|"MM") echo -e "  ${YELLOW}~${NC} $file" ;;
+            " D"|"D ")      echo -e "  ${RED}-${NC} $file" ;;
+            "??")           echo -e "  ${GREEN}+${NC} $file" ;;
+            *)              echo -e "  ${DIM}?${NC} $file" ;;
+        esac
+    done
+    echo ""
+    echo -ne "Commit all with message '${1}'? ${DIM}[Y/n]${NC} "
+    read -k 1 REPLY
+    echo ""
+
+    case $REPLY in
+        [Nn])
+            echo -e "${DIM}Cancelled. Use 'dotfiles review' for per-package commits.${NC}"
+            ;;
+        *)
+            git add .
+            git commit -m "$1"
+            ;;
+    esac
+
     cd - > /dev/null || return
 }
 
@@ -1043,14 +1084,38 @@ dotfiles-push() {
     ahead=$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)
 
     if [[ $ahead -eq 0 ]]; then
-        echo -e "\n  ${GREEN}✓${NC} Already up to date with origin\n"
+        echo -e "${GREEN}✓${NC} Already up to date with origin"
     elif git push --quiet; then
-        echo -e "\n  ${GREEN}✓${NC} Pushed ${ahead} commit(s) to origin\n"
+        echo -e "${GREEN}✓${NC} Pushed ${ahead} commit(s) to origin"
     else
-        echo -e "\n  ${RED}✗${NC} Push failed\n"
+        echo -e "${RED}✗${NC} Push failed"
     fi
 
     cd - > /dev/null || return
+}
+
+# List available stow packages
+dotfiles-packages() {
+    local BOLD='\033[1m' DIM='\033[2m' GREEN='\033[0;32m' YELLOW='\033[1;33m' NC='\033[0m'
+    local stow_dir="$SYSTEM_DIR/dotfiles/stow"
+
+    local pkg linked
+    for pkg in "$stow_dir"/*/; do
+        pkg="${pkg%/}"
+        pkg="${pkg##*/}"
+        # Check if at least one file from this package is symlinked
+        linked=false
+        while IFS= read -r f; do
+            local rel="${f#$stow_dir/$pkg/}"
+            [[ -L "$HOME/$rel" ]] && linked=true && break
+        done < <(find "$stow_dir/$pkg" -type f 2>/dev/null)
+
+        if $linked; then
+            echo -e "  ${GREEN}✓${NC} $pkg"
+        else
+            echo -e "  ${DIM}·${NC} ${DIM}$pkg${NC} ${DIM}(not deployed)${NC}"
+        fi
+    done
 }
 
 # Audit installed applications vs Brewfile
