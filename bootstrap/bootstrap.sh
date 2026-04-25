@@ -27,7 +27,10 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m'
 
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -45,25 +48,36 @@ SKIP_MACOS=false
 ################################################################################
 
 print_header() {
-    echo -e "\n${BLUE}===================================================${NC}"
-    echo -e "${BLUE}$1${NC}"
-    echo -e "${BLUE}===================================================${NC}\n"
+    local title="$1"
+    local width=70
+    local padding=$(( (width - ${#title} - 2) / 2 ))
+    echo ""
+    echo -e "${CYAN}╭$(printf '%*s' $width '' | tr ' ' '─')╮${NC}"
+    echo -e "${CYAN}│${NC}$(printf '%*s' $padding '')${BOLD}${title}${NC}$(printf '%*s' $((width - padding - ${#title})) '')${CYAN}│${NC}"
+    echo -e "${CYAN}╰$(printf '%*s' $width '' | tr ' ' '─')╯${NC}"
+    echo ""
+}
+
+print_section() {
+    local title="$1"
+    echo -e "  ${YELLOW}${BOLD}${title}${NC}"
+    echo -e "  ${DIM}$(printf '%*s' ${#title} '' | tr ' ' '─')${NC}"
 }
 
 print_success() {
-    echo -e "${GREEN}✓${NC} $1"
+    echo -e "  ${GREEN}✓${NC} $1"
 }
 
 print_error() {
-    echo -e "${RED}✗${NC} $1"
+    echo -e "  ${RED}✗${NC} $1"
 }
 
 print_warning() {
-    echo -e "${YELLOW}⚠${NC} $1"
+    echo -e "  ${YELLOW}⚠${NC} $1"
 }
 
 print_info() {
-    echo -e "${BLUE}ℹ${NC} $1"
+    echo -e "  ${DIM}$1${NC}"
 }
 
 # Check if command exists
@@ -244,8 +258,11 @@ if [ "$SKIP_DOTFILES" = false ]; then
         print_info "Deploying dotfiles..."
         for package in "${STOW_PACKAGES[@]}"; do
             print_info "Stowing $package..."
-            stow -v -t "$HOME" "$package" 2>&1 | grep -v "^LINK:" || true
-            print_success "$package deployed"
+            if stow -t "$HOME" "$package" 2>&1; then
+                print_success "$package deployed"
+            else
+                print_error "$package deployment failed"
+            fi
         done
 
         if [ -d "$BACKUP_DIR" ]; then

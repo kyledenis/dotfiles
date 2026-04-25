@@ -21,6 +21,9 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
 NC='\033[0m'
 
 # Script directory
@@ -41,25 +44,30 @@ PACKAGES=()
 ################################################################################
 
 print_header() {
-    echo -e "\n${BLUE}===================================================${NC}"
-    echo -e "${BLUE}$1${NC}"
-    echo -e "${BLUE}===================================================${NC}\n"
+    local title="$1"
+    local width=70
+    local padding=$(( (width - ${#title} - 2) / 2 ))
+    echo ""
+    echo -e "${CYAN}╭$(printf '%*s' $width '' | tr ' ' '─')╮${NC}"
+    echo -e "${CYAN}│${NC}$(printf '%*s' $padding '')${BOLD}${title}${NC}$(printf '%*s' $((width - padding - ${#title})) '')${CYAN}│${NC}"
+    echo -e "${CYAN}╰$(printf '%*s' $width '' | tr ' ' '─')╯${NC}"
+    echo ""
 }
 
 print_success() {
-    echo -e "${GREEN}✓${NC} $1"
+    echo -e "  ${GREEN}✓${NC} $1"
 }
 
 print_error() {
-    echo -e "${RED}✗${NC} $1"
+    echo -e "  ${RED}✗${NC} $1"
 }
 
 print_warning() {
-    echo -e "${YELLOW}⚠${NC} $1"
+    echo -e "  ${YELLOW}⚠${NC} $1"
 }
 
 print_info() {
-    echo -e "${BLUE}ℹ${NC} $1"
+    echo -e "  ${DIM}$1${NC}"
 }
 
 command_exists() {
@@ -251,8 +259,11 @@ if [ "$DELETE" = true ]; then
         if [ "$DRY_RUN" = true ]; then
             stow -n -D -v -t "$TARGET_DIR" "$package"
         else
-            stow -D -v -t "$TARGET_DIR" "$package" 2>&1 | grep -v "^UNLINK:" || true
-            print_success "$package removed"
+            if stow -D -t "$TARGET_DIR" "$package" 2>&1; then
+                print_success "$package removed"
+            else
+                print_error "$package removal failed"
+            fi
         fi
     done
 
@@ -265,8 +276,11 @@ elif [ "$RESTOW" = true ]; then
         if [ "$DRY_RUN" = true ]; then
             stow -n -R -v -t "$TARGET_DIR" "$package"
         else
-            stow -R -v -t "$TARGET_DIR" "$package" 2>&1 | grep -v "^LINK:\|^UNLINK:" || true
-            print_success "$package restowed"
+            if stow -R -t "$TARGET_DIR" "$package" 2>&1; then
+                print_success "$package restowed"
+            else
+                print_error "$package restow failed"
+            fi
         fi
     done
 
@@ -279,8 +293,11 @@ else
         if [ "$DRY_RUN" = true ]; then
             stow -n -v -t "$TARGET_DIR" "$package"
         else
-            stow -v -t "$TARGET_DIR" "$package" 2>&1 | grep -v "^LINK:" || true
-            print_success "$package deployed"
+            if stow -t "$TARGET_DIR" "$package" 2>&1; then
+                print_success "$package deployed"
+            else
+                print_error "$package deployment failed"
+            fi
         fi
     done
 fi
