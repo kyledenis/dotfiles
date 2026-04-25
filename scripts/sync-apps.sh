@@ -25,10 +25,27 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOTFILES_DIR="$(dirname "$SCRIPT_DIR")"
 BREWFILE="$DOTFILES_DIR/bootstrap/brewfile"
+STATE_DIR="$HOME/.local/state/dotfiles"
+SNAPSHOT_FILE="$STATE_DIR/installed-apps.snapshot"
 
 ################################################################################
 # Helper Functions
 ################################################################################
+
+save_snapshot() {
+    mkdir -p "$STATE_DIR"
+    ls -1 /Applications/ | grep ".app$" | sed 's/.app$//' | sort > "$SNAPSHOT_FILE"
+}
+
+get_recently_removed() {
+    # Apps in the snapshot that are no longer installed
+    if [[ ! -f "$SNAPSHOT_FILE" ]]; then
+        return
+    fi
+    local current
+    current=$(ls -1 /Applications/ | grep ".app$" | sed 's/.app$//' | sort)
+    comm -23 "$SNAPSHOT_FILE" <(echo "$current")
+}
 
 print_header() {
     local title="$1"
@@ -99,8 +116,30 @@ audit() {
 
     local app_count
     app_count=$(echo "$INSTALLED_APPS" | wc -l | tr -d ' ')
-    print_info "Scanning $app_count applications..."
-    echo ""
+
+    # Fetch cask index in background
+    local spin_chars='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    local spin_i=0
+    local tmp_casks
+    tmp_casks=$(mktemp)
+    brew search --cask '' > "$tmp_casks" 2>/dev/null &
+    local brew_pid=$!
+
+    trap 'kill "$brew_pid" 2>/dev/null; rm -f "$tmp_casks"; printf "\r\033[K" >&2; return 1' INT
+
+    while kill -0 "$brew_pid" 2>/dev/null; do
+        local sc="${spin_chars:spin_i:1}"
+        printf "\r  ${CYAN}%s${NC} ${DIM}Scanning %d apps...${NC}" "$sc" "$app_count" >&2
+        spin_i=$(( (spin_i + 1) % ${#spin_chars} ))
+        sleep 0.08
+    done
+    wait "$brew_pid" || true
+    printf "\r\033[K" >&2
+
+    local all_casks
+    all_casks=$(cat "$tmp_casks")
+    rm -f "$tmp_casks"
+    trap - INT
 
     while IFS= read -r app; do
         cask_name=$(get_cask_name "$app")
@@ -111,7 +150,7 @@ audit() {
             not_in_brewfile+=("$app")
 
             # Check if available as cask
-            if cask_exists "$cask_name"; then
+            if echo "$all_casks" | grep -qx "$cask_name"; then
                 available_casks+=("$cask_name|$app")
             else
                 unavailable_casks+=("$app")
@@ -167,7 +206,7 @@ audit() {
             echo -e "    ${RED}✗${NC} $cask"
         done
         echo ""
-        print_info "Run 'brew bundle --file=$BREWFILE' to install, or remove from Brewfile"
+        print_info "Run 'dotfiles remove-apps' to clean up, or 'brew bundle' to install them"
         echo ""
     fi
 
@@ -188,6 +227,9 @@ audit() {
         [ $(( col % 2 )) -ne 0 ] && echo ""
         echo ""
     fi
+
+    # Save snapshot for remove-apps tracking
+    save_snapshot
 }
 
 ################################################################################
@@ -301,6 +343,75 @@ cask \"${cask}\"  # ${app}
     fi
 }
 
+# Arrow-key menu selector
+# Usage: select_from_menu "result_var" "preselect_value" "${ARRAY[@]}"
+select_from_menu() {
+    local result_var="$1"
+    local preselect="$2"
+    shift 2
+    local options=("$@")
+    local count=${#options[@]}
+    local selected=0
+    local cancelled=false
+
+    # Find preselected index
+    for i in "${!options[@]}"; do
+        [[ "${options[$i]}" == "$preselect" ]] && selected=$i
+    done
+
+    # Hide cursor
+    tput civis 2>/dev/null
+
+    # Draw initial list
+    echo -e "      ${DIM}↑↓ navigate · enter confirm · q cancel${NC}"
+    local i
+    for i in "${!options[@]}"; do
+        if [ "$i" -eq "$selected" ]; then
+            echo -e "      ${CYAN}▸ ${options[$i]}${NC}"
+        else
+            echo -e "      ${DIM}  ${options[$i]}${NC}"
+        fi
+    done
+
+    # Read keys and redraw
+    while true; do
+        local key
+        read -rsn1 key < /dev/tty
+
+        if [[ "$key" == $'\x1b' ]]; then
+            read -rsn2 key < /dev/tty
+            case "$key" in
+                '[A') [ "$selected" -gt 0 ] && (( selected-- )) ;;
+                '[B') [ "$selected" -lt $((count - 1)) ] && (( selected++ )) ;;
+            esac
+        elif [[ "$key" == "" ]]; then
+            break
+        elif [[ "$key" == "q" || "$key" == "Q" ]]; then
+            cancelled=true
+            break
+        fi
+
+        # Move cursor up and redraw
+        tput cuu "$count" 2>/dev/null
+        for i in "${!options[@]}"; do
+            tput el 2>/dev/null
+            if [ "$i" -eq "$selected" ]; then
+                echo -e "      ${CYAN}▸ ${options[$i]}${NC}"
+            else
+                echo -e "      ${DIM}  ${options[$i]}${NC}"
+            fi
+        done
+    done
+
+    tput cnorm 2>/dev/null
+
+    if $cancelled; then
+        printf -v "$result_var" ""
+    else
+        printf -v "$result_var" "%s" "${options[$selected]}"
+    fi
+}
+
 add_apps() {
     print_header "Add Apps to Brewfile"
 
@@ -308,14 +419,46 @@ add_apps() {
     INSTALLED_APPS=$(ls -1 /Applications/ | grep ".app$" | sed 's/.app$//' | grep -v "^Safari$\|^Utilities$\|^Developer$\|^TestFlight$")
 
     available_to_add=()
+    local spin_chars='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    local spin_i=0
+
+    # Fetch cask index in background
+    local tmp_casks
+    tmp_casks=$(mktemp)
+    brew search --cask '' > "$tmp_casks" 2>/dev/null &
+    local brew_pid=$!
+
+    trap 'kill "$brew_pid" 2>/dev/null; rm -f "$tmp_casks"; printf "\r\033[K" >&2; tput cnorm 2>/dev/null; return 1' INT
+
+    # Spin while waiting for brew index
+    while kill -0 "$brew_pid" 2>/dev/null; do
+        local sc="${spin_chars:spin_i:1}"
+        printf "\r  ${CYAN}%s${NC} ${DIM}Fetching Homebrew cask index...${NC}" "$sc" >&2
+        spin_i=$(( (spin_i + 1) % ${#spin_chars} ))
+        sleep 0.08
+    done
+    wait "$brew_pid" || true
+
+    # Fast in-memory scan against cached index
+    local all_casks
+    all_casks=$(cat "$tmp_casks")
+    rm -f "$tmp_casks"
+
+    local app_total
+    app_total=$(echo "$INSTALLED_APPS" | wc -l | tr -d ' ')
+    local scanned=0
 
     while IFS= read -r app; do
+        (( ++scanned ))
+        printf "\r  ${CYAN}✓${NC} ${DIM}Checking %d/%d apps...${NC}" "$scanned" "$app_total" >&2
         cask_name=$(get_cask_name "$app")
-
-        if ! is_in_brewfile "$cask_name" && cask_exists "$cask_name"; then
+        if ! is_in_brewfile "$cask_name" && echo "$all_casks" | grep -qx "$cask_name"; then
             available_to_add+=("$cask_name|$app")
         fi
     done <<< "$INSTALLED_APPS"
+
+    printf "\r\033[K" >&2
+    trap - INT
 
     if [ ${#available_to_add[@]} -eq 0 ]; then
         print_success "All installed apps are already in Brewfile"
@@ -324,71 +467,66 @@ add_apps() {
 
     local added=0
     local skipped=0
+    local total=${#available_to_add[@]}
+    local current=0
 
-    echo -e "  ${DIM}${#available_to_add[@]} app(s) can be added. For each:${NC}"
-    echo -e "  ${DIM}  y = add  n = skip  i = info  q = quit${NC}"
+    echo -e "  ${GREEN}✓${NC} Found ${BOLD}${total}${NC} app(s) to review"
     echo ""
 
     for entry in "${available_to_add[@]}"; do
         cask="${entry%%|*}"
         app="${entry##*|}"
+        (( ++current ))
 
         # Auto-detect category
         local suggested
         suggested=$(guess_category "$cask")
 
-        echo -ne "  ${GREEN}+${NC} ${BOLD}${app}${NC} ${DIM}(${cask})${NC} → ${CYAN}${suggested}${NC}  [y/n/c/i/q] "
-        read -n 1 -r REPLY
+        echo -e "  ${GREEN}+${NC} ${BOLD}${app}${NC} ${DIM}→ ${suggested}${NC} ${DIM}(${current}/${total})${NC}"
+        echo -ne "    [${BOLD}Y${NC}]es  [${BOLD}n${NC}]o  [${BOLD}c${NC}]hange  [${BOLD}i${NC}]nfo  [${BOLD}q${NC}]uit: "
+        read -n 1 -r REPLY < /dev/tty
         echo ""
 
         case $REPLY in
             y|Y|"")
                 insert_into_brewfile "$cask" "$app" "$suggested"
                 echo -e "    ${GREEN}✓${NC} Added to ${suggested}"
-                (( added++ ))
+                (( ++added ))
                 ;;
             c|C)
-                # Let user pick a different category
                 echo ""
-                local idx=1
-                for cat in "${CATEGORIES[@]}"; do
-                    printf "    ${DIM}%2d)${NC} %s\n" "$idx" "$cat"
-                    (( idx++ ))
-                done
-                echo -ne "    Category [1-${#CATEGORIES[@]}]: "
-                read -r cat_num
-                if [[ "$cat_num" =~ ^[0-9]+$ ]] && [ "$cat_num" -ge 1 ] && [ "$cat_num" -le ${#CATEGORIES[@]} ]; then
-                    local chosen="${CATEGORIES[$((cat_num - 1))]}"
+                local chosen
+                select_from_menu chosen "$suggested" "${CATEGORIES[@]}"
+                if [[ -n "$chosen" ]]; then
                     insert_into_brewfile "$cask" "$app" "$chosen"
                     echo -e "    ${GREEN}✓${NC} Added to ${chosen}"
-                    (( added++ ))
+                    (( ++added ))
                 else
-                    echo -e "    ${DIM}Invalid — skipped${NC}"
-                    (( skipped++ ))
+                    echo -e "    ${DIM}Cancelled — skipped${NC}"
+                    (( ++skipped ))
                 fi
                 ;;
             i|I)
                 brew info --cask "$cask" 2>/dev/null | head -5 | sed 's/^/    /'
+                echo -ne "    ${DIM}Add? [Y/n]:${NC} "
+                read -n 1 -r REPLY2 < /dev/tty
                 echo ""
-                # Re-prompt
-                echo -ne "    Add? [y/n] "
-                read -n 1 -r REPLY2
-                echo ""
-                if [[ "$REPLY2" =~ ^[Yy]$ ]]; then
+                if [[ "$REPLY2" =~ ^[Nn]$ ]]; then
+                    (( ++skipped ))
+                else
                     insert_into_brewfile "$cask" "$app" "$suggested"
                     echo -e "    ${GREEN}✓${NC} Added to ${suggested}"
-                    (( added++ ))
-                else
-                    (( skipped++ ))
+                    (( ++added ))
                 fi
                 ;;
             q|Q)
                 break
                 ;;
             *)
-                (( skipped++ ))
+                (( ++skipped ))
                 ;;
         esac
+        echo ""
     done
 
     echo ""
@@ -398,6 +536,196 @@ add_apps() {
     else
         print_info "No apps added"
     fi
+}
+
+################################################################################
+# Remove Mode - Interactively remove stale Brewfile entries
+################################################################################
+
+remove_apps() {
+    local show_all=false
+    [[ "${1:-}" == "--all" ]] && show_all=true
+
+    print_header "Clean Up Brewfile"
+
+    INSTALLED_APPS=$(ls -1 /Applications/ | grep ".app$" | sed 's/.app$//' | grep -v "^Safari$\|^Utilities$\|^Developer$\|^TestFlight$")
+    brewfile_casks=$(grep "^cask " "$BREWFILE" | sed 's/cask "\([^"]*\)".*/\1/')
+
+    # Determine which apps were recently removed (if snapshot exists)
+    local recently_removed=""
+    local has_snapshot=false
+    if ! $show_all && [[ -f "$SNAPSHOT_FILE" ]]; then
+        has_snapshot=true
+        recently_removed=$(get_recently_removed)
+    fi
+
+    # Fetch cask index to check validity
+    local spin_chars='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    local spin_i=0
+    local tmp_casks
+    tmp_casks=$(mktemp)
+    brew search --cask '' > "$tmp_casks" 2>/dev/null &
+    local brew_pid=$!
+
+    trap 'kill "$brew_pid" 2>/dev/null; rm -f "$tmp_casks"; printf "\r\033[K" >&2; return 1' INT
+
+    while kill -0 "$brew_pid" 2>/dev/null; do
+        local sc="${spin_chars:spin_i:1}"
+        printf "\r  ${CYAN}%s${NC} ${DIM}Checking Brewfile entries...${NC}" "$sc" >&2
+        spin_i=$(( (spin_i + 1) % ${#spin_chars} ))
+        sleep 0.08
+    done
+    wait "$brew_pid" || true
+    printf "\r\033[K" >&2
+
+    local all_casks
+    all_casks=$(cat "$tmp_casks")
+    rm -f "$tmp_casks"
+    trap - INT
+
+    # Categorise not-installed Brewfile entries
+    local not_installed_invalid=()
+    local recently_removed_casks=()
+    local not_installed_known=()
+
+    while IFS= read -r cask; do
+        app_name=$(echo "$cask" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++)sub(/./,toupper(substr($i,1,1)),$i)}1' | sed 's/ //g')
+        if ! echo "$INSTALLED_APPS" | grep -qi "^$app_name$"; then
+            if ! echo "$all_casks" | grep -qx "$cask"; then
+                # Not even a valid cask anymore — always show
+                not_installed_invalid+=("$cask")
+            elif $show_all || ! $has_snapshot; then
+                # --all mode or no snapshot — show everything
+                not_installed_known+=("$cask")
+            elif echo "$recently_removed" | grep -qi "$app_name"; then
+                # Was installed last time, now gone — recently uninstalled
+                recently_removed_casks+=("$cask")
+            fi
+            # Otherwise: not installed but was already missing last time — skip
+        fi
+    done <<< "$brewfile_casks"
+
+    local total=$(( ${#not_installed_invalid[@]} + ${#recently_removed_casks[@]} + ${#not_installed_known[@]} ))
+
+    if [ "$total" -eq 0 ]; then
+        if $show_all || ! $has_snapshot; then
+            print_success "Brewfile is clean — nothing to review"
+        else
+            print_success "No recently removed apps to clean up"
+            print_info "Run 'dotfiles remove-apps --all' to review all not-installed entries"
+        fi
+        save_snapshot
+        return
+    fi
+
+    local removed=0
+    local current=0
+
+    # Invalid casks first — genuinely stale
+    if [ ${#not_installed_invalid[@]} -gt 0 ]; then
+        print_section "Invalid casks"
+        echo -e "  ${DIM}No longer available in Homebrew — safe to remove${NC}"
+        echo ""
+
+        for cask in "${not_installed_invalid[@]}"; do
+            (( ++current ))
+            echo -e "  ${RED}✗${NC} ${BOLD}${cask}${NC} ${DIM}(${current}/${total})${NC}"
+            echo -ne "    [${BOLD}Y${NC}]es remove  [${BOLD}n${NC}]o keep  [${BOLD}q${NC}]uit: "
+            read -n 1 -r REPLY < /dev/tty
+            echo ""
+
+            case $REPLY in
+                y|Y|"")
+                    sed -i '' "/^cask \"${cask}\"/d" "$BREWFILE"
+                    echo -e "    ${GREEN}✓${NC} Removed"
+                    (( ++removed ))
+                    ;;
+                q|Q)
+                    echo ""
+                    if [ $removed -gt 0 ]; then
+                        print_success "Removed $removed entry/entries from Brewfile"
+                        print_info "Run 'dotfiles review' to commit"
+                    fi
+                    save_snapshot
+                    return
+                    ;;
+                *)
+                    echo -e "    ${DIM}Kept${NC}"
+                    ;;
+            esac
+            echo ""
+        done
+    fi
+
+    # Recently removed apps — the main actionable section
+    if [ ${#recently_removed_casks[@]} -gt 0 ]; then
+        print_section "Recently uninstalled"
+        echo -e "  ${DIM}These apps were removed since your last audit${NC}"
+        echo ""
+
+        for cask in "${recently_removed_casks[@]}"; do
+            (( ++current ))
+            echo -e "  ${YELLOW}?${NC} ${BOLD}${cask}${NC} ${DIM}(${current}/${total})${NC}"
+            echo -ne "    [${BOLD}K${NC}]eep  [${BOLD}r${NC}]emove  [${BOLD}q${NC}]uit: "
+            read -n 1 -r REPLY < /dev/tty
+            echo ""
+
+            case $REPLY in
+                r|R)
+                    sed -i '' "/^cask \"${cask}\"/d" "$BREWFILE"
+                    echo -e "    ${GREEN}✓${NC} Removed"
+                    (( ++removed ))
+                    ;;
+                q|Q)
+                    break
+                    ;;
+                *)
+                    echo -e "    ${DIM}Kept${NC}"
+                    ;;
+            esac
+            echo ""
+        done
+    fi
+
+    # All not-installed valid casks (--all mode or first run)
+    if [ ${#not_installed_known[@]} -gt 0 ]; then
+        print_section "In Brewfile but not installed"
+        echo -e "  ${DIM}Will be installed on a new machine — remove any you no longer want${NC}"
+        echo ""
+
+        for cask in "${not_installed_known[@]}"; do
+            (( ++current ))
+            echo -e "  ${YELLOW}?${NC} ${BOLD}${cask}${NC} ${DIM}(${current}/${total})${NC}"
+            echo -ne "    [${BOLD}K${NC}]eep  [${BOLD}r${NC}]emove  [${BOLD}q${NC}]uit: "
+            read -n 1 -r REPLY < /dev/tty
+            echo ""
+
+            case $REPLY in
+                r|R)
+                    sed -i '' "/^cask \"${cask}\"/d" "$BREWFILE"
+                    echo -e "    ${GREEN}✓${NC} Removed"
+                    (( ++removed ))
+                    ;;
+                q|Q)
+                    break
+                    ;;
+                *)
+                    echo -e "    ${DIM}Kept${NC}"
+                    ;;
+            esac
+            echo ""
+        done
+    fi
+
+    echo ""
+    if [ $removed -gt 0 ]; then
+        print_success "Removed $removed entry/entries from Brewfile"
+        print_info "Run 'dotfiles review' to commit"
+    else
+        print_info "No entries removed"
+    fi
+
+    save_snapshot
 }
 
 ################################################################################
@@ -486,6 +814,10 @@ case "${1:-}" in
         ;;
     --add)
         add_apps
+        ;;
+    --remove)
+        shift
+        remove_apps "$@"
         ;;
     --update)
         update_all
