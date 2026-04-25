@@ -120,7 +120,7 @@ audit() {
             echo "  • $app → cask \"$cask\""
         done
         echo ""
-        print_info "Run './sync-apps.sh --add' to add these interactively"
+        print_info "Run 'dotfiles add-apps' to add these interactively"
         echo ""
     fi
 
