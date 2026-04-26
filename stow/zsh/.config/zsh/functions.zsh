@@ -1313,6 +1313,11 @@ _arc_resolve_path() {
 _arc_browse_remote() {
     local start_dir="${1:-$ARC_DEFAULT}"
     local mode="${2:-dir}"
+    local _arc_tmp_files=()
+
+    # Clean up temp files on exit or interrupt
+    _arc_cleanup() { rm -f "${_arc_tmp_files[@]}" 2>/dev/null; }
+    trap '_arc_cleanup' INT TERM
 
     if ! ssh -o ConnectTimeout=3 "$ARC_HOST" true 2>/dev/null; then
         echo "arc: cannot connect to $ARC_HOST" >&2
@@ -1322,6 +1327,7 @@ _arc_browse_remote() {
     # Listing script — called by the fzf loop to populate entries
     local list_script
     list_script=$(mktemp)
+    _arc_tmp_files+=("$list_script")
     cat > "$list_script" << 'LISTEOF'
 #!/usr/bin/env bash
 host="$1"; dir="$2"; mode="$3"; shortcuts_file="$4"
@@ -1356,6 +1362,7 @@ LISTEOF
     # Pinned shortcuts file
     local shortcuts_file
     shortcuts_file=$(mktemp)
+    _arc_tmp_files+=("$shortcuts_file")
     for key in ${(@ko)ARC_SHORTCUTS}; do
         printf "  %-12s %s\n" "[$key]" "${ARC_SHORTCUTS[$key]}"
     done > "$shortcuts_file"
@@ -1363,6 +1370,7 @@ LISTEOF
     # Preview script — shows directory contents or file info
     local preview_script
     preview_script=$(mktemp)
+    _arc_tmp_files+=("$preview_script")
     cat > "$preview_script" << 'PREVEOF'
 #!/usr/bin/env bash
 host="$1"; cdir="$2"; line="$3"
@@ -1421,7 +1429,7 @@ PREVEOF
 
         # Cancelled (esc or empty)
         if [[ -z "$line" && -z "$key" ]]; then
-            rm -f "$list_script" "$shortcuts_file" "$preview_script"
+            _arc_cleanup; trap - INT TERM
             return 1
         fi
 
@@ -1430,7 +1438,7 @@ PREVEOF
 
         # Tab = select whatever is highlighted and return it
         if [[ "$key" == "tab" ]]; then
-            rm -f "$list_script" "$shortcuts_file" "$preview_script"
+            _arc_cleanup; trap - INT TERM
             case "$entry" in
                 \[*\]*) echo "$(echo "$entry" | awk '{print $NF}')" ;;
                 "../")  echo "$(dirname "$current")" ;;
@@ -1453,7 +1461,7 @@ PREVEOF
                 [[ "$current" != "/" ]] && current="$(dirname "$current")"
                 ;;
             "> select:"*)
-                rm -f "$list_script" "$shortcuts_file" "$preview_script"
+                _arc_cleanup; trap - INT TERM
                 echo "$current"
                 return 0
                 ;;
@@ -1463,7 +1471,7 @@ PREVEOF
                 ;;
             *)
                 # File — select it
-                rm -f "$list_script" "$shortcuts_file" "$preview_script"
+                _arc_cleanup; trap - INT TERM
                 echo "${current%/}/${entry}"
                 return 0
                 ;;
