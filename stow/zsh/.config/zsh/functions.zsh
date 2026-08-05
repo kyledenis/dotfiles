@@ -467,35 +467,12 @@ dotfiles() {
     shift 2>/dev/null || true
 
     case "$cmd" in
-        # Auto-adopt commands
+        # Config detection (read-only; adoption happens in review)
+        scan)
+            "$SYSTEM_DIR/dotfiles/scripts/scan-configs.sh"
+            ;;
         status)
-            "$SYSTEM_DIR/dotfiles/scripts/setup-auto-adopt.sh" status
-            ;;
-        log)
-            local lines="${1:-20}"
-            local log_file="$HOME/.local/state/dotfiles/auto-adopt.log"
-            if [[ -f "$log_file" ]]; then
-                tail -n "$lines" "$log_file"
-            else
-                echo "No log file yet. Run 'dotfiles run-now' to create one."
-            fi
-            ;;
-        run-now)
-            echo "Running auto-adopt manually..."
-            "$SYSTEM_DIR/dotfiles/scripts/auto-adopt.sh"
-            echo ""
-            echo "Done. Check 'dotfiles log' for results."
-            ;;
-        dry-run)
-            echo "Preview of what would be adopted:"
-            "$SYSTEM_DIR/dotfiles/scripts/auto-adopt.sh" --dry-run
-            ;;
-        # Daemon management
-        install)
-            "$SYSTEM_DIR/dotfiles/scripts/setup-auto-adopt.sh" install
-            ;;
-        uninstall)
-            "$SYSTEM_DIR/dotfiles/scripts/setup-auto-adopt.sh" uninstall
+            dotfiles-scan-status
             ;;
         # Existing commands
         packages|pkg)
@@ -573,6 +550,60 @@ dotfiles-add() {
     "$SYSTEM_DIR/dotfiles/scripts/stow-add.sh" "$@"
 }
 
+# Show last scan time and pending candidates
+dotfiles-scan-status() {
+    local state_dir="$HOME/.local/state/dotfiles"
+    local stamp="$state_dir/last-scan" cand="$state_dir/candidates.txt"
+
+    if [[ -f "$stamp" ]]; then
+        echo "Last scan: $(date -r "$(<"$stamp")" '+%Y-%m-%d %H:%M')"
+    else
+        echo "Last scan: never (run 'dotfiles scan')"
+    fi
+
+    if [[ -s "$cand" ]]; then
+        echo "Candidates pending review:"
+        local r k f
+        while IFS='|' read -r r k f; do
+            [[ -n "$r" ]] && echo "  $r ($f files)"
+        done < "$cand"
+    else
+        echo "Candidates: none"
+    fi
+}
+
+_df_human_kb() {
+    local kb=${1:-0}
+    if (( kb >= 1048576 )); then
+        printf "%.1fGB" $(( kb / 1048576.0 ))
+    elif (( kb >= 1024 )); then
+        printf "%.1fMB" $(( kb / 1024.0 ))
+    else
+        printf "%dKB" $kb
+    fi
+}
+
+# Move a candidate into stow and symlink back (atomic mv, same filesystem)
+_df_adopt_candidate() {
+    local rel="$1"
+    local dotfiles_dir="$SYSTEM_DIR/dotfiles"
+    local pkg
+
+    if [[ "$rel" == .config/* ]]; then
+        pkg="${${rel#.config/}%%/*}"
+    elif [[ "$rel" == .*rc && "$rel" != */* ]]; then
+        pkg="${${rel#.}%rc}"
+    else
+        pkg="${${rel#.}%%[._]*}"
+    fi
+    [[ -z "$pkg" || "$pkg" == "." ]] && return 1
+
+    local dest="$dotfiles_dir/stow/$pkg/$rel"
+    mkdir -p "${dest:h}" || return 1
+    mv "$HOME/$rel" "$dest" || return 1
+    ln -s "$dest" "$HOME/$rel"
+}
+
 # Review and commit pending dotfiles changes
 dotfiles-review() {
     local dotfiles_dir="$SYSTEM_DIR/dotfiles"
@@ -585,6 +616,59 @@ dotfiles-review() {
     local BOLD='\033[1m'
     local DIM='\033[2m'
     local NC='\033[0m'
+
+    # ── New config candidates (consent-based adoption) ──────
+    "$dotfiles_dir/scripts/scan-configs.sh" --quiet 2>/dev/null
+    local cand_file="$HOME/.local/state/dotfiles/candidates.txt"
+    if [[ -s "$cand_file" ]]; then
+        local -a cand_lines=("${(f)$(<"$cand_file")}")
+        echo ""
+        echo -e "  ${BOLD}New Configs Detected${NC}"
+        echo ""
+        local cline crel ckb cfiles chuman is_large ans adopt_it
+        for cline in "${cand_lines[@]}"; do
+            crel="${cline%%|*}"
+            ckb="${${cline#*|}%%|*}"
+            cfiles="${cline##*|}"
+            [[ -z "$crel" || ! -e "$HOME/$crel" ]] && continue
+            chuman=$(_df_human_kb "$ckb")
+            is_large=0
+            (( ckb > 25600 || cfiles > 1000 )) && is_large=1
+
+            if (( is_large )); then
+                echo -e "    ${RED}+${NC}  ${crel}  ${RED}[${cfiles} files, ${chuman} — LARGE]${NC}"
+                echo -ne "       adopt? ${DIM}[y/N/i(gnore)]${NC} "
+            else
+                echo -e "    ${GREEN}+${NC}  ${crel}  ${DIM}[${cfiles} files, ${chuman}]${NC}"
+                echo -ne "       adopt? ${DIM}[Y/n/i(gnore)]${NC} "
+            fi
+            read -k 1 ans
+            echo ""
+
+            adopt_it=0
+            case "$ans" in
+                [Yy]) adopt_it=1 ;;
+                [Nn]) ;;
+                [Ii])
+                    echo "$crel" >> "$dotfiles_dir/scripts/patterns/ignore.txt"
+                    [[ -d "$HOME/$crel" ]] && echo "$crel/*" >> "$dotfiles_dir/scripts/patterns/ignore.txt"
+                    echo -e "       ${DIM}added to ignore.txt — won't be suggested again${NC}"
+                    ;;
+                *) (( is_large )) || adopt_it=1 ;;
+            esac
+
+            if (( adopt_it )); then
+                if _df_adopt_candidate "$crel"; then
+                    echo -e "       ${GREEN}✓ adopted${NC}"
+                else
+                    echo -e "       ${RED}✗ adoption failed — left in place${NC}"
+                fi
+            elif [[ "$ans" != [Ii] ]]; then
+                echo -e "       ${DIM}skipped${NC}"
+            fi
+        done
+        : > "$cand_file"
+    fi
 
     # ── Collect changes by package ──────────────────────────
     local -A pkg_added=()      # pkg → list of added files
@@ -681,6 +765,7 @@ dotfiles-review() {
     # ── Generate commit messages per package ────────────────
 
     local -A pkg_messages=()
+    local -A pkg_staged_count=() pkg_staged_h=() pkg_staged_bytes=() pkg_disk_count=()
     local additions deletions diff_content parts_str
     local -a parts=()
     local commit_type added_keys deleted_keys key_names verb new_hosts removed_hosts
@@ -866,18 +951,39 @@ dotfiles-review() {
         fi
     done
 
-    # Messages for new packages
+    _human_size() {
+        awk -v b="${1:-0}" 'BEGIN{split("B KB MB GB TB",u," ");i=1;while(b>=1024&&i<5){b/=1024;i++}if(i==1)printf"%dB",b;else printf"%.1f%s",b,u[i]}'
+    }
+
+    local ADOPT_WARN_BYTES=$(( 25 * 1024 * 1024 ))
+    local sf sc sb dc szf one
     for pkg in "${new_packages[@]}"; do
-        file_list=$(find "stow/$pkg" -type f 2>/dev/null | sed "s|stow/$pkg/||" | sort)
-        fcount=$(echo "$file_list" | wc -l | tr -d ' ')
-        if [[ $fcount -eq 1 ]]; then
-            pkg_messages[$pkg]="chore(dotfiles): adopt ${pkg} config (${file_list})"
+        sf=$(git add -n "stow/$pkg" 2>/dev/null | sed -E "s/^add '(.*)'$/\1/")
+        sc=$(print -r -- "$sf" | grep -c .)
+        sb=0
+        while IFS= read -r szf; do
+            [[ -f "$szf" ]] || continue
+            sb=$(( sb + $(stat -f "%z" "$szf" 2>/dev/null || stat -c "%s" "$szf" 2>/dev/null || echo 0) ))
+        done <<< "$sf"
+        dc=$(find "stow/$pkg" -type f 2>/dev/null | wc -l | tr -d ' ')
+
+        pkg_staged_count[$pkg]=$sc
+        pkg_staged_bytes[$pkg]=$sb
+        pkg_staged_h[$pkg]=$(_human_size "$sb")
+        pkg_disk_count[$pkg]=$dc
+
+        if [[ $sc -eq 0 ]]; then
+            pkg_messages[$pkg]="chore(dotfiles): adopt ${pkg} config (empty — all files gitignored)"
+        elif [[ $sc -eq 1 ]]; then
+            one="${sf#stow/$pkg/}"
+            pkg_messages[$pkg]="chore(dotfiles): adopt ${pkg} config (${one})"
         else
-            pkg_messages[$pkg]="chore(dotfiles): adopt ${pkg} config ($fcount files)"
+            pkg_messages[$pkg]="chore(dotfiles): adopt ${pkg} config ($sc files)"
         fi
     done
 
     unfunction _describe_config_change 2>/dev/null
+    unfunction _human_size 2>/dev/null
 
     # ── Display ─────────────────────────────────────────────
     echo ""
@@ -887,8 +993,19 @@ dotfiles-review() {
     for pkg in "${changed_packages[@]}"; do
         echo -e "    ${YELLOW}~${NC}  ${pkg_messages[$pkg]}"
     done
+    local b sc2 dc2 marker tag
     for pkg in "${new_packages[@]}"; do
-        echo -e "    ${GREEN}+${NC}  ${pkg_messages[$pkg]}"
+        b=${pkg_staged_bytes[$pkg]}; sc2=${pkg_staged_count[$pkg]}; dc2=${pkg_disk_count[$pkg]}
+        marker="${GREEN}+${NC}"
+        tag="${DIM}[${sc2} files, ${pkg_staged_h[$pkg]}]${NC}"
+        if (( b > ADOPT_WARN_BYTES )); then
+            marker="${RED}+${NC}"
+            tag="${RED}[${sc2} files, ${pkg_staged_h[$pkg]} — LARGE]${NC}"
+        fi
+        if (( dc2 > sc2 + 50 )); then
+            tag="${tag} ${DIM}(${dc2} on disk, rest gitignored)${NC}"
+        fi
+        echo -e "    ${marker}  ${pkg_messages[$pkg]}  ${tag}"
     done
 
     local total_commits=$(( ${#changed_packages[@]} + ${#new_packages[@]} ))
@@ -1314,6 +1431,7 @@ _arc_browse_remote() {
     local start_dir="${1:-$ARC_DEFAULT}"
     local mode="${2:-dir}"
     local _arc_tmp_files=()
+    typeset -g _arc_selected=""   # return channel — read by callers, never captured via $()
 
     # Clean up temp files on exit or interrupt
     _arc_cleanup() { rm -f "${_arc_tmp_files[@]}" 2>/dev/null; }
@@ -1374,11 +1492,11 @@ LISTEOF
     cat > "$preview_script" << 'PREVEOF'
 #!/usr/bin/env bash
 host="$1"; cdir="$2"; line="$3"
-entry=$(echo "$line" | sed 's/^  //')
+entry="${line#  }"
 
 case "$entry" in
     \[*\]*)
-        dir=$(echo "$entry" | awk '{print $NF}')
+        dir="${entry##* }"
         count=$(ssh "$host" "ls -1 '$dir' 2>/dev/null | wc -l" 2>/dev/null)
         echo "$dir"
         echo "$count items"
@@ -1386,7 +1504,7 @@ case "$entry" in
         ssh "$host" "ls -1p '$dir' 2>/dev/null | head -30"
         ;;
     "../")
-        parent=$(dirname "$cdir")
+        parent="${cdir%/*}"; parent="${parent:-/}"
         ssh "$host" "ls -1p '$parent' 2>/dev/null | head -30"
         ;;
     "> select:"*)
@@ -1424,8 +1542,9 @@ PREVEOF
                 --info=hidden)
 
         local key line entry
-        key=$(echo "$result" | head -1)
-        line=$(echo "$result" | tail -1)
+        # zsh-native line splitting — no external head/tail, immune to PATH issues
+        key=${result%%$'\n'*}
+        line=${result##*$'\n'}
 
         # Cancelled (esc or empty)
         if [[ -z "$line" && -z "$key" ]]; then
@@ -1433,19 +1552,21 @@ PREVEOF
             return 1
         fi
 
-        # Strip leading indent
-        entry=$(echo "$line" | sed 's/^  //')
+        # Strip leading indent — zsh-native, no sed
+        entry=${line#  }
 
-        # Tab = select whatever is highlighted and return it
+        # Tab = select whatever is highlighted and return it.
+        # Return value goes through the global _arc_selected, NOT stdout, so it
+        # can't be contaminated by anything writing to this function's stdout.
         if [[ "$key" == "tab" ]]; then
             _arc_cleanup; trap - INT TERM
             case "$entry" in
-                \[*\]*) echo "$(echo "$entry" | awk '{print $NF}')" ;;
-                "../")  echo "$(dirname "$current")" ;;
-                */)     echo "${current%/}/${entry%/}" ;;
-                "> select:"*) echo "$current" ;;
+                \[*\]*) _arc_selected="${entry##* }" ;;
+                "../")  _arc_selected="${current:h}" ;;
+                */)     _arc_selected="${current%/}/${entry%/}" ;;
+                "> select:"*) _arc_selected="$current" ;;
                 "──"*)  continue ;;
-                *)      echo "${current%/}/${entry}" ;;
+                *)      _arc_selected="${current%/}/${entry}" ;;
             esac
             return 0
         fi
@@ -1454,15 +1575,15 @@ PREVEOF
         case "$entry" in
             \[*\]*)
                 # Pin — jump to that directory
-                current=$(echo "$entry" | awk '{print $NF}')
+                current=${entry##* }
                 ;;
             "──"*) ;;
             "../")
-                [[ "$current" != "/" ]] && current="$(dirname "$current")"
+                [[ "$current" != "/" ]] && current="${current:h}"
                 ;;
             "> select:"*)
                 _arc_cleanup; trap - INT TERM
-                echo "$current"
+                _arc_selected="$current"
                 return 0
                 ;;
             */)
@@ -1472,7 +1593,7 @@ PREVEOF
             *)
                 # File — select it
                 _arc_cleanup; trap - INT TERM
-                echo "${current%/}/${entry}"
+                _arc_selected="${current%/}/${entry}"
                 return 0
                 ;;
         esac
@@ -1490,6 +1611,31 @@ _arc_browse_local() {
             --preview-window=right:40%:wrap \
             --prompt="local > ")
     [[ -n "$selection" ]] && echo "$selection" || return 1
+}
+
+# Guard a resolved remote path before handing it to rsync. A valid remote path
+# is a single, non-empty, absolute line. Embedded newlines mean the value was not
+# reduced to a single path upstream (stray stdout captured, or line-parsing that
+# relies on external tools failed) — refuse it rather than let rsync run wild.
+# Uses only zsh builtins so it works even when coreutils are unavailable on PATH.
+_arc_validate_remote() {
+    local path="$1"
+    if [[ -z "$path" ]]; then
+        echo "arc: no remote path resolved" >&2
+        return 1
+    fi
+    if [[ "$path" == *$'\n'* ]]; then
+        echo "arc: remote path contains newlines — refusing to continue." >&2
+        echo "     The path was not reduced to a single line upstream." >&2
+        echo "     Captured value:" >&2
+        print -r -- "       | ${path//$'\n'/$'\n'       | }" >&2
+        return 1
+    fi
+    if [[ "$path" != /* ]]; then
+        echo "arc: remote path is not absolute: '$path'" >&2
+        return 1
+    fi
+    return 0
 }
 
 _arc_push() {
@@ -1510,13 +1656,15 @@ _arc_push() {
         remote=$(_arc_resolve_path "$remote_dest")
         if [[ -z "$remote" ]]; then
             echo "No match for '$remote_dest'. Opening browser..." >&2
-            remote=$(_arc_browse_remote "$ARC_DEFAULT" dir) || return 1
+            _arc_browse_remote "$ARC_DEFAULT" dir >/dev/null || return 1; remote=$_arc_selected
         fi
     else
-        remote=$(_arc_browse_remote "$ARC_DEFAULT" dir) || return 1
+        _arc_browse_remote "$ARC_DEFAULT" dir >/dev/null || return 1; remote=$_arc_selected
     fi
 
-    echo "Pushing $(basename "$local_path") → ${ARC_HOST}:${remote}/"
+    _arc_validate_remote "$remote" || return 1
+
+    echo "Pushing ${local_path:t} → ${ARC_HOST}:${remote}/"
     rsync -ah --progress --partial "$local_path" "${ARC_HOST}:${remote}/"
 }
 
@@ -1529,19 +1677,21 @@ _arc_pull() {
         remote=$(_arc_resolve_path "$remote_source")
         if [[ -z "$remote" ]]; then
             echo "No match for '$remote_source'. Opening browser..." >&2
-            remote=$(_arc_browse_remote "$ARC_DEFAULT" file) || return 1
+            _arc_browse_remote "$ARC_DEFAULT" file >/dev/null || return 1; remote=$_arc_selected
         else
             local is_dir
             is_dir=$(ssh "$ARC_HOST" "[[ -d '$remote' ]] && echo yes || echo no" 2>/dev/null)
             if [[ "$is_dir" == "yes" ]]; then
-                remote=$(_arc_browse_remote "$remote" file) || return 1
+                _arc_browse_remote "$remote" file >/dev/null || return 1; remote=$_arc_selected
             fi
         fi
     else
-        remote=$(_arc_browse_remote "$ARC_DEFAULT" file) || return 1
+        _arc_browse_remote "$ARC_DEFAULT" file >/dev/null || return 1; remote=$_arc_selected
     fi
 
-    echo "Pulling $(basename "$remote") → ${local_dest}/"
+    _arc_validate_remote "$remote" || return 1
+
+    echo "Pulling ${remote:t} → ${local_dest}/"
     rsync -ah --progress --partial "${ARC_HOST}:${remote}" "${local_dest}/"
 }
 
@@ -1559,9 +1709,8 @@ _arc_ls() {
         start_dir="$ARC_DEFAULT"
     fi
 
-    local result
-    result=$(_arc_browse_remote "$start_dir" file)
-    [[ -n "$result" ]] && echo "$result"
+    _arc_browse_remote "$start_dir" file >/dev/null
+    [[ -n "$_arc_selected" ]] && echo "$_arc_selected"
 }
 
 arc() {
@@ -1629,7 +1778,7 @@ emptytrash() {
 # Startup Checks
 # ============================================================================
 
-# Nudge for uncommitted dotfiles adoptions (once per session, >24h old only)
+# Nudge for new config candidates and uncommitted changes (once per session)
 _dotfiles_pending_check() {
     # Skip if already checked this session
     [[ -n "$_DOTFILES_CHECKED" ]] && return
@@ -1638,25 +1787,47 @@ _dotfiles_pending_check() {
     local dotfiles_dir="${SYSTEM_DIR:-$HOME/Documents/paras/04-system}/dotfiles"
     [[ -d "$dotfiles_dir/.git" ]] || return
 
-    # Fast check: any untracked stow/ dirs?
+    local state_dir="$HOME/.local/state/dotfiles"
+    local stamp="$state_dir/last-scan" cand="$state_dir/candidates.txt"
+
+    # Throttled background rescan (daily, silent, read-only)
+    local now_ts last_ts=0
+    now_ts=$(date +%s)
+    [[ -f "$stamp" ]] && last_ts=$(<"$stamp")
+    if (( now_ts - last_ts > 86400 )); then
+        ( nice "$dotfiles_dir/scripts/scan-configs.sh" --quiet >/dev/null 2>&1 & ) 2>/dev/null
+    fi
+
+    # Candidates from last scan
+    local cand_count=0
+    [[ -s "$cand" ]] && cand_count=$(grep -c . "$cand" 2>/dev/null || echo 0)
+
+    # Uncommitted stow packages
     local pending
     pending=$(git -C "$dotfiles_dir" status --porcelain 2>/dev/null | grep -c '^?? stow/' || true)
-    [[ "$pending" -eq 0 ]] && return
 
-    # Check if oldest untracked package is >24h old
-    local oldest_ts now_ts age_hours
-    oldest_ts=$(find "$dotfiles_dir"/stow -maxdepth 2 -name ".git" -prune -o -type d -print 2>/dev/null \
-        | head -5 | while read -r d; do stat -f "%m" "$d" 2>/dev/null; done | sort -n | head -1)
-    [[ -z "$oldest_ts" ]] && return
-    now_ts=$(date +%s)
-    age_hours=$(( (now_ts - oldest_ts) / 3600 ))
-    [[ "$age_hours" -lt 24 ]] && return
+    local msg=""
+    if (( cand_count > 0 && pending > 0 )); then
+        msg="dotfiles: ${cand_count} new config(s) detected, ${pending} package(s) pending commit."
+    elif (( cand_count > 0 )); then
+        msg="dotfiles: ${cand_count} new config(s) detected."
+    elif (( pending > 0 )); then
+        # Only nag about pending commits once they're >24h old
+        local oldest_ts age_hours
+        oldest_ts=$(find "$dotfiles_dir"/stow -maxdepth 2 -name ".git" -prune -o -type d -print 2>/dev/null \
+            | head -5 | while read -r d; do stat -f "%m" "$d" 2>/dev/null; done | sort -n | head -1)
+        [[ -z "$oldest_ts" ]] && return
+        age_hours=$(( (now_ts - oldest_ts) / 3600 ))
+        [[ "$age_hours" -lt 24 ]] && return
+        msg="dotfiles: ${pending} adopted config(s) pending commit."
+    fi
+    [[ -z "$msg" ]] && return
 
     # Defer output to a precmd after P10k instant prompt has released stdout.
     # P10k forces _p9k_precmd to run LAST in precmd_functions, and it's there
     # that _p9k_clear_instant_prompt restores fd 1/2 and unsets the flag.
     # So: first precmd → flag still set → skip; second precmd → flag gone → echo.
-    _dotfiles_pending_msg="\033[2mdotfiles: ${pending} adopted config(s) pending commit. Run \033[0mdotfiles review\033[2m to commit.\033[0m"
+    _dotfiles_pending_msg="\033[2m${msg} Run \033[0mdotfiles review\033[2m.\033[0m"
     autoload -Uz add-zsh-hook
     _dotfiles_show_pending() {
         (( ${+__p9k_instant_prompt_active} )) && return
