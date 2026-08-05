@@ -1,0 +1,90 @@
+// Zed settings
+//
+// For information on how to configure Zed, see the Zed
+// documentation: https://zed.dev/docs/configuring-zed
+//
+// To see all of Zed's default settings without changing your
+// custom settings, run `zed: open default settings` from the
+// command palette (cmd-shift-p / ctrl-shift-p)
+{
+  "agent": {
+    "default_model": {
+      "provider": "lmstudio",
+      "model": "qwen3.6-35b-a3b",
+      "enable_thinking": false
+    },
+    "favorite_models": [],
+    "model_parameters": []
+  },
+  "icon_theme": "Zed (Default)",
+  "terminal": {
+    "font_size": 12.0,
+    "font_family": "Berkeley Mono Trial",
+    "cursor_shape": "underline",
+    "blinking": "on"
+  },
+  "tab_bar": {
+    "show": true
+  },
+  "git_panel": {
+    "button": true
+  },
+  "scroll_sensitivity": 1.0,
+  "gutter": {
+    "line_numbers": true
+  },
+  "minimap": {
+    "show": "always",
+    "thumb": "always"
+  },
+  "current_line_highlight": "all",
+  "cursor_shape": "underline",
+  "cursor_blink": true,
+  "autosave": {
+    "after_delay": {
+      "milliseconds": 1000
+    }
+  },
+  "buffer_font_fallbacks": [
+    "Menlo",
+    "Consolas",
+    "Courier New",
+    "monospace"
+  ],
+  "buffer_font_family": "JetBrains Mono",
+  "auto_indent_on_paste": true,
+  "linked_edits": true,
+  "use_on_type_format": true,
+  "show_whitespaces": "selection",
+  "show_edit_predictions": true,
+  "wrap_guides": [
+    80,
+    100,
+    120
+  ],
+  "tab_size": 4,
+  "telemetry": {
+    "diagnostics": true,
+    "metrics": false,
+    "anthropic_retention": false
+  },
+  "agent_servers": {
+    "cursor": {
+      "type": "registry"
+    },
+    "codex-acp": {
+      "type": "registry"
+    },
+    "claude-acp": {
+      "type": "registry"
+    }
+  },
+  "base_keymap": "VSCode",
+  "ui_font_size": 16,
+  "buffer_font_size": 13.0,
+  "theme": {
+    "mode": "system",
+    "light": "One Light",
+    "dark": "One Dark",
+  },
+}
