@@ -209,6 +209,8 @@ Calibre Library/*
 .config/iterm2/*
 .config/raycast
 .config/raycast/*
+.config/raycast-x
+.config/raycast-x/*
 .config/linearmouse
 .config/linearmouse/*
 .config/qBittorrent
