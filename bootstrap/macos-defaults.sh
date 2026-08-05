@@ -236,7 +236,7 @@ defaults write NSGlobalDomain AppleKeyboardUIMode -int 2
 print_success "Enabled keyboard access for buttons"
 
 ################################################################################
-# KEYBOARD REPEAT RATE                                                [DEFAULT]
+# KEYBOARD REPEAT RATE                                                 [CUSTOM]
 ################################################################################
 #
 # How fast keys repeat when held down
@@ -254,12 +254,12 @@ print_success "Enabled keyboard access for buttons"
 #   35 = Slow (583ms)
 #
 # Your current value: KeyRepeat=5, InitialKeyRepeat=25
-# Status: Using defaults - no action needed
+# Status: Pinned to current values so a new machine replicates the fast repeat
+#         regardless of what the OS default is on that version
 #
-# Uncomment to set faster repeat:
-# defaults write NSGlobalDomain KeyRepeat -int 2
-# defaults write NSGlobalDomain InitialKeyRepeat -int 15
-# print_success "Set fast keyboard repeat"
+defaults write NSGlobalDomain KeyRepeat -int 5
+defaults write NSGlobalDomain InitialKeyRepeat -int 25
+print_success "Set keyboard repeat (KeyRepeat=5, InitialKeyRepeat=25)"
 
 ################################################################################
 # PRESS AND HOLD FOR SPECIAL CHARACTERS                               [DEFAULT]
@@ -1004,7 +1004,7 @@ print_success "Set Activity Monitor to hierarchical view"
 # print_success "Set Activity Monitor sort"
 
 ################################################################################
-# TEXTEDIT: PLAIN TEXT MODE                                           [DEFAULT]
+# TEXTEDIT: PLAIN TEXT MODE                                            [CUSTOM]
 ################################################################################
 #
 # Default format for new TextEdit documents
@@ -1014,10 +1014,10 @@ print_success "Set Activity Monitor to hierarchical view"
 #   1 = Rich text (macOS default)
 #
 # Your current value: not set (using macOS default: 1)
-# Status: Using default - no action needed
+# Status: Pending apply - plain text default prevents RTFD attachment bloat
 #
-# defaults write com.apple.TextEdit RichText -int 0
-# print_success "Set TextEdit to plain text mode"
+defaults write com.apple.TextEdit RichText -int 0
+print_success "Set TextEdit to plain text mode"
 
 ################################################################################
 # TEXTEDIT: ENCODING                                                  [DEFAULT]
