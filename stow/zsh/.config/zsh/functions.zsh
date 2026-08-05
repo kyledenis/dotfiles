@@ -1123,16 +1123,22 @@ dotfiles-status() {
     local RED='\033[0;31m'
     local NC='\033[0m'
 
-    local dirty ahead behind
-    dirty=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+    local porcelain dirty stow_dirty other_dirty ahead behind
+    porcelain=$(git status --porcelain 2>/dev/null)
+    dirty=$(echo "$porcelain" | grep -c .)
+    stow_dirty=$(echo "$porcelain" | grep -cE '^.. stow/')
+    other_dirty=$(( dirty - stow_dirty ))
     ahead=$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)
     behind=$(git rev-list --count HEAD..@{u} 2>/dev/null || echo 0)
 
     if [[ $dirty -eq 0 && $ahead -eq 0 && $behind -eq 0 ]]; then
         echo -e "${GREEN}✓${NC} Dotfiles are clean and up to date"
     else
-        if [[ $dirty -gt 0 ]]; then
-            echo -e "${YELLOW}~${NC} ${dirty} uncommitted change(s) — run 'dotfiles review'"
+        if [[ $stow_dirty -gt 0 ]]; then
+            echo -e "${YELLOW}~${NC} ${stow_dirty} stow change(s) — run 'dotfiles review'"
+        fi
+        if [[ $other_dirty -gt 0 ]]; then
+            echo -e "${YELLOW}~${NC} ${other_dirty} other change(s) — run 'dotfiles commit <msg>'"
         fi
         if [[ $ahead -gt 0 ]]; then
             echo -e "${YELLOW}⇡${NC} ${ahead} commit(s) ahead — run 'dotfiles push'"
@@ -1222,16 +1228,26 @@ dotfiles-packages() {
     local BOLD='\033[1m' DIM='\033[2m' GREEN='\033[0;32m' YELLOW='\033[1;33m' NC='\033[0m'
     local stow_dir="$SYSTEM_DIR/dotfiles/stow"
 
-    local pkg linked
+    local pkg first_file rel p tgt linked
     for pkg in "$stow_dir"/*/; do
         pkg="${pkg%/}"
         pkg="${pkg##*/}"
-        # Check if at least one file from this package is symlinked
+        # Deployed if a file resolves through a symlink into stow — either a
+        # per-file symlink or a folded directory symlink at an ancestor.
+        first_file=$(find "$stow_dir/$pkg" -type f 2>/dev/null | head -1)
         linked=false
-        while IFS= read -r f; do
-            local rel="${f#$stow_dir/$pkg/}"
-            [[ -L "$HOME/$rel" ]] && linked=true && break
-        done < <(find "$stow_dir/$pkg" -type f 2>/dev/null)
+        if [[ -n "$first_file" ]]; then
+            p="$HOME/${first_file#$stow_dir/$pkg/}"
+            while [[ "$p" == "$HOME"/* ]]; do
+                if [[ -L "$p" ]]; then
+                    tgt=$(readlink "$p" 2>/dev/null)
+                    case "$tgt" in
+                        "$stow_dir"/*|*/dotfiles/stow/*) linked=true; break ;;
+                    esac
+                fi
+                p="${p:h}"
+            done
+        fi
 
         if $linked; then
             echo -e "  ${GREEN}✓${NC} $pkg"
