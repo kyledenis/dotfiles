@@ -71,6 +71,11 @@ window-padding-y = 6
 background-opacity = 0.96
 background-blur = 12
 
+# Liquid Glass effect
+# background-opacity = 0.0
+# background-blur = macos-glass-clear
+# macos-titlebar-style = transparent
+
 # macOS behaviour
 macos-option-as-alt = left
 
