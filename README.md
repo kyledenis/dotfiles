@@ -14,20 +14,17 @@ Run again anytime to sync—it detects what's installed and only changes what's 
 
 ## Features
 
-### Auto-Adopt Daemon
+### Config Detection
 
-A background service that automatically discovers new config files and adds them to version control.
+A read-only scan discovers new config files; adoption happens only with explicit consent in `dotfiles review`. Nothing is moved or copied in the background.
 
 ```bash
-dotfiles install      # Install the daemon (runs every 4 hours)
-dotfiles status       # Check if daemon is running
-dotfiles uninstall    # Remove the daemon
-dotfiles run-now      # Trigger adoption manually
-dotfiles dry-run      # Preview what would be adopted
-dotfiles log          # View adoption log
+dotfiles scan         # Scan for new configs now (read-only)
+dotfiles status       # Last scan time and pending candidates
+dotfiles review       # Review candidates and adopt with per-package consent
 ```
 
-Uses pattern files in `scripts/patterns/` to classify files:
+Scans also run daily in the background, triggered on shell startup (throttled). Uses pattern files in `scripts/patterns/` to classify files:
 - `adopt.txt` — Files to track (shell configs, editor settings, etc.)
 - `ignore.txt` — Files to skip (caches, package manager state)
 - `sensitive.txt` — Files to never adopt (SSH keys, API tokens, credentials)
@@ -139,13 +136,11 @@ dotfiles/
 │   ├── bootstrap.sh           # Main setup script
 │   ├── brew-install-smart.sh  # Smart package installer
 │   ├── brewfile               # Homebrew packages
-│   ├── macos-defaults.sh      # macOS system preferences
-│   └── launchd/               # Auto-adopt daemon plist
+│   └── macos-defaults.sh      # macOS system preferences
 │
 ├── scripts/
 │   ├── rogue.sh               # Quick reference command
-│   ├── auto-adopt.sh          # Auto-adoption logic
-│   ├── setup-auto-adopt.sh    # Daemon installer
+│   ├── scan-configs.sh        # Read-only new-config detection
 │   ├── deploy.sh              # Stow deployment
 │   ├── stow-add.sh            # Add files to stow
 │   ├── sync-apps.sh           # App audit/sync
@@ -205,8 +200,7 @@ Install with `./scripts/setup-hooks.sh`.
    git config --global user.name "Your Name"
    git config --global user.email "you@example.com"
    ```
-4. Install the auto-adopt daemon: `dotfiles install`
-5. Manual installs: see `bootstrap/MANUAL_APPS.md`
+4. Manual installs: see `bootstrap/MANUAL_APPS.md`
 
 ## Troubleshooting
 

@@ -274,13 +274,6 @@ if [ "$SKIP_DOTFILES" = false ]; then
 
     cd - > /dev/null || exit 1
 
-    # Post-stow: install auto-adopt daemon
-    if [ -f "$SCRIPT_DIR/../scripts/setup-auto-adopt.sh" ]; then
-        print_info "Installing auto-adopt daemon..."
-        bash "$SCRIPT_DIR/../scripts/setup-auto-adopt.sh" install
-        print_success "Auto-adopt daemon installed"
-    fi
-
     # Post-stow: install git hooks
     if [ -f "$SCRIPT_DIR/../scripts/setup-hooks.sh" ]; then
         print_info "Installing git hooks..."
