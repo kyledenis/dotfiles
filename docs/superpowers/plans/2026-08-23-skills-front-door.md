@@ -18,6 +18,7 @@
 - The pre-commit hook enforces: `bash -n` syntax check on every staged `.sh`, no trailing whitespace, no `.DS_Store`, no large files. It *warns* if a `.sh` is not executable. Run `chmod +x` on new executables; leave `lib/*.sh` non-executable (they are sourced) and accept the warning.
 - Commits use conventional format `type(scope): description`. No "Generated with Claude Code", no `Co-Authored-By`. The harness appends its own session trailer — don't hand-write one.
 - Tests must never touch `$HOME/.skills`, `$HOME/.claude/skills` or `$HOME/.cursor/skills`. Every test runs against `mktemp -d` via the env overrides added in Task 1.
+- **Never run a `.bats` file that can write, before the destination overrides exist.** The RED phase of Task 1 uses a `--dry-run` probe precisely because running the real suite against hardcoded destinations deletes the user's live skill directories. This happened once. The suite runs only after Step 5.
 - Phase 1 is behaviour-identical for sync. If a test that passes against today's `skills-sync.sh` fails after a refactor, the refactor is wrong.
 - Work happens on branch `feat/skills-front-door`, already created, with the spec committed at `f1f0169`.
 
@@ -63,6 +64,15 @@ Create `scripts/tests/helpers.bash`:
 
 DOTFILES_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SCRIPTS_DIR="$DOTFILES_ROOT/scripts"
+
+# Fuse. This runs at `load helpers` time, before any test body, so a test that
+# forgets to call setup_skills_env still cannot reach the real ~/.skills or the
+# real tool directories. Without it, one forgotten setup silently deletes the
+# user's installed skills — which is exactly how this file came to exist.
+: "${BATS_FILE_TMPDIR:=$(mktemp -d)}"
+export SKILLS_DIR="$BATS_FILE_TMPDIR/fallback-skills"
+export SKILLS_DEST_CLAUDE="$BATS_FILE_TMPDIR/fallback-claude"
+export SKILLS_DEST_CURSOR="$BATS_FILE_TMPDIR/fallback-cursor"
 
 setup_skills_env() {
     TEST_ROOT="$(mktemp -d)"
@@ -188,10 +198,28 @@ teardown() { teardown_skills_env; }
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they fail**
+- [ ] **Step 4: Prove the override is not yet honoured — without writing anything**
 
-Run: `bats scripts/tests/sync.bats`
-Expected: FAIL. The destinations are still hardcoded to `$HOME`, so `$SKILLS_DEST_CLAUDE/alpha/SKILL.md` does not exist. (If any test *passes*, stop — it means the script wrote into your real `~/.claude/skills`. Check `git status` in `~/.skills` and clean up before continuing.)
+Do **not** run `bats scripts/tests/sync.bats` yet. The destinations are still
+hardcoded, so the suite's `--prune` test would run against the real
+`~/.claude/skills` and delete every managed skill in it. Use `--dry-run`, which
+writes nothing, as the RED probe instead:
+
+```bash
+T=$(mktemp -d)
+mkdir -p "$T/skills/alpha"
+printf -- '---\nname: alpha\ndescription: probe\nversion: "1.0"\ntargets: [claude, cursor]\ncategory: general\n---\n\nbody\n' \
+    > "$T/skills/alpha/SKILL.md"
+
+SKILLS_DIR="$T/skills" \
+SKILLS_DEST_CLAUDE="$T/claude" \
+SKILLS_DEST_CURSOR="$T/cursor" \
+    ./scripts/skills-sync.sh --dry-run | grep "Would create"
+```
+
+Expected: the destination paths printed are under **`$HOME/.claude/skills`** and
+`$HOME/.cursor/skills`, *not* under `$T`. That is the RED — the script ignores
+`SKILLS_DEST_*`. Keep `$T` for Step 6; `--dry-run` created nothing inside it.
 
 - [ ] **Step 5: Add the destination overrides**
 
@@ -215,10 +243,31 @@ TOOL_DEST[cursor]="${SKILLS_DEST_CURSOR:-$HOME/.cursor/skills}"
 
 Leave `TOOL_LAYOUT` and `TOOL_FIELDS` untouched.
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [ ] **Step 6: Re-run the probe, then run the suite**
+
+First confirm the seam works, still without writing:
+
+```bash
+SKILLS_DIR="$T/skills" \
+SKILLS_DEST_CLAUDE="$T/claude" \
+SKILLS_DEST_CURSOR="$T/cursor" \
+    ./scripts/skills-sync.sh --dry-run | grep "Would create"
+```
+
+Expected: destinations now under `$T`. That is the GREEN for the seam, and the
+proof that it is safe to run the suite.
+
+Now run it:
 
 Run: `bats scripts/tests/sync.bats`
 Expected: 7 tests, all PASS.
+
+Then confirm nothing leaked into the real directories:
+
+```bash
+ls ~/.claude/skills | wc -l   # expect 37
+ls ~/.cursor/skills | wc -l   # expect 35
+```
 
 - [ ] **Step 7: Confirm the real sync still works**
 
