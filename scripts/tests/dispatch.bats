@@ -76,3 +76,60 @@ teardown() {
     [ "$status" -eq 1 ]
     [[ "$output" == *"Unknown command"* ]]
 }
+
+@test "status reports the plugin channel from the fixture" {
+    make_skill alpha
+    run "$SCRIPTS_DIR/skills.sh" status
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"PLUGINS"* ]]
+    [[ "$output" == *"5 installed"* ]]
+    [[ "$output" == *"3 enabled"* ]]
+}
+
+@test "status reports skills with no source pin as unclassified" {
+    make_skill alpha
+    make_skill beta
+    run "$SCRIPTS_DIR/skills.sh" status
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"UPSTREAM"* ]]
+    [[ "$output" == *"2 unclassified"* ]]
+}
+
+@test "status counts unmanaged skills in tool directories as drift" {
+    make_skill alpha
+    mkdir -p "$SKILLS_DEST_CLAUDE/foreign"
+    echo "x" > "$SKILLS_DEST_CLAUDE/foreign/SKILL.md"
+    run "$SCRIPTS_DIR/skills.sh" status
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"DRIFT"* ]]
+    [[ "$output" == *"1 unmanaged"* ]]
+}
+
+@test "skills listed in .skills-ignore are not counted as drift" {
+    make_skill alpha
+    mkdir -p "$SKILLS_DEST_CLAUDE/foreign"
+    echo "x" > "$SKILLS_DEST_CLAUDE/foreign/SKILL.md"
+    printf '# installed by another tool\nforeign\n' > "$SKILLS_DIR/.skills-ignore"
+    run "$SCRIPTS_DIR/skills.sh" status
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"unmanaged"* ]]
+}
+
+@test "status omits the plugin row when the channel is unavailable" {
+    make_skill alpha
+    export SKILLS_PLUGINS_JSON="/nonexistent/plugins.json"
+    run "$SCRIPTS_DIR/skills.sh" status
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"MINE"* ]]
+    [[ "$output" != *"installed"* ]]
+}
+
+@test "status counts a skill unmanaged in two tools only once" {
+    make_skill alpha
+    mkdir -p "$SKILLS_DEST_CLAUDE/foreign" "$SKILLS_DEST_CURSOR/foreign"
+    echo "x" > "$SKILLS_DEST_CLAUDE/foreign/SKILL.md"
+    echo "x" > "$SKILLS_DEST_CURSOR/foreign/SKILL.md"
+    run "$SCRIPTS_DIR/skills.sh" status
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"1 unmanaged"* ]]
+}

@@ -19,7 +19,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/skills-common.sh"
 source "$SCRIPT_DIR/lib/skills-plugins.sh"
 
-SPEC_PATH="docs/superpowers/specs/2026-08-22-skills-cli-design.md"
+SPEC_PATH="$(cd "$SCRIPT_DIR/.." && pwd)/docs/superpowers/specs/2026-08-22-skills-cli-design.md"
 
 show_help() {
     cat << 'EOF'
@@ -30,10 +30,11 @@ wrote, the ones vendored from someone else's repo, and Claude Code plugins.
 
 Commands:
     (none)          Status across all three channels — read-only
-    list            Full registry: name, version, targets
+    list, ls        Full registry: name, version, targets
     sync            Distribute ~/.skills to Claude Code and Cursor
     import [name]   Adopt unmanaged skills out of tool directories
-    new <name>      Scaffold a new skill
+    new, create <name>
+                    Scaffold a new skill
     help            This message
 
 Sync options:
@@ -100,10 +101,87 @@ status_mine() {
     printf "             %b\n" "$state"
 }
 
+# Names listed in ~/.skills/.skills-ignore, one per line, # comments allowed.
+# Skills another tool installed belong here so they stop reading as drift.
+ignored_skills() {
+    local f="$SKILLS_DIR/.skills-ignore"
+    [ -f "$f" ] || return 0
+    grep -v '^[[:space:]]*#' "$f" 2>/dev/null | grep -v '^[[:space:]]*$' || true
+}
+
+# UPSTREAM row. Phase 1 has no provenance yet, so every skill without a
+# `source:` block reads as unclassified. Phase 2 fills these in.
+status_upstream() {
+    local pinned=0 unclassified=0 d src
+    for d in "$SKILLS_DIR"/*/; do
+        [ -f "$d/SKILL.md" ] || continue
+        src=$(read_field "$d/SKILL.md" "source.url")
+        if [ -n "$src" ]; then
+            pinned=$((pinned + 1))
+        else
+            unclassified=$((unclassified + 1))
+        fi
+    done
+
+    printf "  ${BOLD}UPSTREAM${NC}   ${DIM}%-32s${NC} %s pinned\n" "vendored from git" "$pinned"
+    if [ "$unclassified" -gt 0 ]; then
+        printf "             ${YELLOW}%s unclassified${NC} ${DIM}— run \`skills adopt <name> <repo>\`${NC}\n" "$unclassified"
+    fi
+}
+
+status_plugins() {
+    plugins_supported || return 0
+    local snap
+    snap=$(plugins_snapshot) || return 0
+    [ -n "$snap" ] || return 0
+
+    local total enabled
+    total=$(plugins_count "$snap")
+    enabled=$(plugins_enabled_count "$snap")
+    printf "  ${BOLD}PLUGINS${NC}    ${DIM}%-32s${NC} %s installed\n" "claude" "$total"
+    printf "             ${DIM}%s enabled · %s disabled${NC}\n" "$enabled" "$((total - enabled))"
+}
+
+# Skills sitting in a tool directory that the canonical store knows nothing
+# about — either something else installed them, or you wrote them in place.
+status_drift() {
+    local ignored names count tool dest d name
+    ignored=$(ignored_skills)
+    names=""
+
+    for tool in "${TOOLS[@]}"; do
+        dest="${TOOL_DEST[$tool]}"
+        [ -d "$dest" ] || continue
+        for d in "$dest"/*/; do
+            [ -d "$d" ] || continue
+            name=$(basename "$d")
+            [ -d "$SKILLS_DIR/$name" ] && continue
+            echo "$ignored" | grep -qx "$name" && continue
+            names="$names$name"$'\n'
+        done
+    done
+
+    count=$(printf '%s' "$names" | sort -u | grep -c . || true)
+    [ -z "$count" ] && count=0
+    [ "$count" -eq 0 ] && return 0
+
+    printf "  ${BOLD}DRIFT${NC}      ${YELLOW}%s unmanaged${NC} ${DIM}in tool directories — \`skills import\`${NC}\n" "$count"
+}
+
 cmd_status() {
     echo ""
     status_mine
     echo ""
+    status_upstream
+    echo ""
+    status_plugins
+    echo ""
+    local drift
+    drift=$(status_drift)
+    if [ -n "$drift" ]; then
+        printf '%s\n' "$drift"
+        echo ""
+    fi
     printf "  ${DIM}skills sync · list · help${NC}\n"
     echo ""
 }
