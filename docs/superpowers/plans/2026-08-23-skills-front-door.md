@@ -12,9 +12,9 @@
 
 ## Global Constraints
 
-- Scripts are `#!/usr/bin/env bash`. macOS ships bash 3.2 — no associative-array-in-function tricks beyond what `skills-sync.sh` already uses, no `${var,,}`, no `mapfile`.
+- Scripts are `#!/usr/bin/env bash`, which on this machine resolves to Homebrew bash **5.3.9**, not `/bin/bash` 3.2. The real floor is **bash 4.2+**: `skills-sync.sh` has always used `declare -A`, and system bash 3.2 rejects that outright (`declare: -A: invalid option`). So associative arrays, `declare -g`, `${var,,}` and `mapfile` are all available. Do not contort the code for 3.2 — this script could never have run there.
 - `yq` is v4 (`v4.52.4`). Frontmatter is read through `yq eval`, never regex-parsed beyond locating the `---` delimiters.
-- Do **not** use `set -u`. The existing scripts don't, and `"${arr[@]}"` on an empty array breaks under it on bash 3.2.
+- Do **not** use `set -u`. The existing scripts don't, and turning it on mid-refactor would surface unrelated failures in code this plan is meant to leave untouched.
 - The pre-commit hook enforces: `bash -n` syntax check on every staged `.sh`, no trailing whitespace, no `.DS_Store`, no large files. It *warns* if a `.sh` is not executable. Run `chmod +x` on new executables; leave `lib/*.sh` non-executable (they are sourced) and accept the warning.
 - Commits use conventional format `type(scope): description`. No "Generated with Claude Code", no `Co-Authored-By`. The harness appends its own session trailer — don't hand-write one.
 - Tests must never touch `$HOME/.skills`, `$HOME/.claude/skills` or `$HOME/.cursor/skills`. Every test runs against `mktemp -d` via the env overrides added in Task 1.
@@ -1244,13 +1244,10 @@ done
 printf '\033[1;33m⚠\033[0m skills-sync is now `skills`. Running `skills %s %s`.\n' \
     "$VERB" "${ARGS[*]}" >&2
 
-if [ ${#ARGS[@]} -eq 0 ]; then
-    exec "$SCRIPT_DIR/skills.sh" "$VERB"
-fi
 exec "$SCRIPT_DIR/skills.sh" "$VERB" "${ARGS[@]}"
 ```
 
-The empty-array branch matters: `"${ARGS[@]}"` on an empty array under bash 3.2 expands to a single empty string in some contexts, which `skills.sh` would reject as an unknown command.
+No empty-array special case is needed: under bash 4.4+ (this machine runs 5.3.9) `"${ARGS[@]}"` on an empty array expands to no words at all, and `set -u` is not in use.
 
 - [ ] **Step 4: Run to verify it passes**
 
