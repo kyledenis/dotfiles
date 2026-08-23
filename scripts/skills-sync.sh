@@ -210,6 +210,11 @@ if [ "$IMPORT_MODE" = true ]; then
     IMPORT_SKIP=0
     DIVERGED_COUNT=0
 
+    # Names in ~/.skills/.skills-ignore are deliberately excluded from
+    # management — the dashboard's DRIFT row already hides them; import
+    # must not pull them into ~/.skills either.
+    ignored=$(ignored_skills)
+
     for tool in "${TOOLS[@]}"; do
         tool_dir="${TOOL_DEST[$tool]}"
         [ -d "$tool_dir" ] || continue
@@ -238,6 +243,9 @@ if [ "$IMPORT_MODE" = true ]; then
                     [ "$candidate_name" = ".system" ] && continue
                     ;;
             esac
+
+            # Skip names deliberately excluded via .skills-ignore
+            echo "$ignored" | grep -Fqx "$candidate_name" && continue
 
             # Check if managed by skills-sync (in manifest)
             managed_hash=$(manifest_hash "$tool_manifest" "$candidate_name")

@@ -79,3 +79,49 @@ teardown() { teardown_skills_env; }
     [ "$status" -eq 0 ]
     [ ! -d "$SKILLS_DEST_CLAUDE/alpha" ]
 }
+
+@test "dropping a tool from targets removes the skill from that tool" {
+    make_skill alpha
+    "$SCRIPTS_DIR/skills-sync.sh" >/dev/null
+    [ -d "$SKILLS_DEST_CURSOR/alpha" ]
+
+    yq -i '.targets = ["claude"]' --front-matter=process "$SKILLS_DIR/alpha/SKILL.md"
+    run "$SCRIPTS_DIR/skills-sync.sh"
+    [ "$status" -eq 0 ]
+    [ -d "$SKILLS_DEST_CLAUDE/alpha" ]
+    [ ! -d "$SKILLS_DEST_CURSOR/alpha" ]
+}
+
+@test "a second sync reports the skill unchanged" {
+    make_skill alpha
+    "$SCRIPTS_DIR/skills-sync.sh" >/dev/null
+    run "$SCRIPTS_DIR/skills-sync.sh"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"unchanged"* ]]
+}
+
+@test "import mode skips names listed in .skills-ignore" {
+    mkdir -p "$SKILLS_DEST_CLAUDE/ignored-skill"
+    cat > "$SKILLS_DEST_CLAUDE/ignored-skill/SKILL.md" <<'EOF'
+---
+name: ignored-skill
+description: Installed by another tool, deliberately excluded
+---
+EOF
+    mkdir -p "$SKILLS_DEST_CLAUDE/wanted-skill"
+    cat > "$SKILLS_DEST_CLAUDE/wanted-skill/SKILL.md" <<'EOF'
+---
+name: wanted-skill
+description: A genuine import candidate
+---
+EOF
+    printf '# installed by another tool\nignored-skill\n' > "$SKILLS_DIR/.skills-ignore"
+
+    # --dry-run gives a non-interactive preview: it prints the candidate
+    # list and stops before the y/n prompt, so this exercises the filter
+    # without touching stdin.
+    run "$SCRIPTS_DIR/skills-sync.sh" --import --dry-run
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"wanted-skill"* ]]
+    [[ "$output" != *"ignored-skill"* ]]
+}

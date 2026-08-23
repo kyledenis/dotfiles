@@ -17,7 +17,15 @@ teardown() {
     [[ "$output" == *"sync"* ]]
     [[ "$output" == *"list"* ]]
     [[ "$output" == *"new"* ]]
-    [[ "$output" == *"doctor"* ]]
+}
+
+@test "help lists doctor under later phases, not under Commands" {
+    run "$SCRIPTS_DIR/skills.sh" help
+    [ "$status" -eq 0 ]
+    commands_block=$(echo "$output" | sed -n '/^Commands:/,/^$/p')
+    later_block=$(echo "$output" | sed -n '/^Coming in later phases:/,/^$/p')
+    [[ "$commands_block" != *"doctor"* ]]
+    [[ "$later_block" == *"doctor"* ]]
 }
 
 @test "sync delegates to the sync engine" {

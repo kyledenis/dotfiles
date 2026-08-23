@@ -78,6 +78,19 @@ print_verbose() {
 }
 
 ################################################################################
+# Ignore List
+################################################################################
+
+# Names listed in ~/.skills/.skills-ignore, one per line, # comments allowed.
+# Skills another tool installed belong here so they stop reading as drift,
+# and skills-sync's import mode skips them too.
+ignored_skills() {
+    local f="$SKILLS_DIR/.skills-ignore"
+    [ -f "$f" ] || return 0
+    grep -v '^[[:space:]]*#' "$f" 2>/dev/null | grep -v '^[[:space:]]*$' || true
+}
+
+################################################################################
 # Frontmatter Utilities
 ################################################################################
 

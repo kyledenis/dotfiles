@@ -29,10 +29,10 @@ One front door for AI agent skills across three channels: the skills you
 wrote, the ones vendored from someone else's repo, and Claude Code plugins.
 
 Commands:
-    (none)          Status across all three channels — read-only
+    (none), status  Status across all three channels — read-only
     list, ls        Full registry: name, version, targets
     sync            Distribute ~/.skills to Claude Code and Cursor
-    import [name]   Adopt unmanaged skills out of tool directories
+    import          Adopt unmanaged skills out of tool directories
     new, create <name>
                     Scaffold a new skill
     help            This message
@@ -101,14 +101,6 @@ status_mine() {
     printf "             %b\n" "$state"
 }
 
-# Names listed in ~/.skills/.skills-ignore, one per line, # comments allowed.
-# Skills another tool installed belong here so they stop reading as drift.
-ignored_skills() {
-    local f="$SKILLS_DIR/.skills-ignore"
-    [ -f "$f" ] || return 0
-    grep -v '^[[:space:]]*#' "$f" 2>/dev/null | grep -v '^[[:space:]]*$' || true
-}
-
 # UPSTREAM row. Phase 1 has no provenance yet, so every skill without a
 # `source:` block reads as unclassified. Phase 2 fills these in.
 status_upstream() {
@@ -125,7 +117,7 @@ status_upstream() {
 
     printf "  ${BOLD}UPSTREAM${NC}   ${DIM}%-32s${NC} %s pinned\n" "vendored from git" "$pinned"
     if [ "$unclassified" -gt 0 ]; then
-        printf "             ${YELLOW}%s unclassified${NC} ${DIM}— run \`skills adopt <name> <repo>\`${NC}\n" "$unclassified"
+        printf "             ${YELLOW}%s unclassified${NC} ${DIM}— provenance lands in phase 2${NC}\n" "$unclassified"
     fi
 }
 
@@ -156,7 +148,7 @@ status_drift() {
             [ -d "$d" ] || continue
             name=$(basename "$d")
             [ -d "$SKILLS_DIR/$name" ] && continue
-            echo "$ignored" | grep -qx "$name" && continue
+            echo "$ignored" | grep -Fqx "$name" && continue
             names="$names$name"$'\n'
         done
     done
@@ -186,7 +178,7 @@ cmd_status() {
     echo ""
 }
 
-cmd_list()   { exec "$SCRIPT_DIR/skills-sync.sh" --list; }
+cmd_list()   { exec "$SCRIPT_DIR/skills-sync.sh" --list "$@"; }
 cmd_sync()   { exec "$SCRIPT_DIR/skills-sync.sh" "$@"; }
 cmd_import() { exec "$SCRIPT_DIR/skills-sync.sh" --import "$@"; }
 cmd_new()    { exec "$SCRIPT_DIR/skills-create.sh" "$@"; }
@@ -202,7 +194,7 @@ COMMAND="${1:-status}"
 
 case "$COMMAND" in
     status)                       cmd_status "$@" ;;
-    list|ls)                      cmd_list ;;
+    list|ls)                      cmd_list "$@" ;;
     sync)                         cmd_sync "$@" ;;
     import)                       cmd_import "$@" ;;
     new|create)                   cmd_new "$@" ;;

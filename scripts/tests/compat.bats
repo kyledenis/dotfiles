@@ -40,3 +40,19 @@ teardown() {
     [ -f "$SKILLS_DEST_CLAUDE/alpha/SKILL.md" ]
     [ ! -d "$SKILLS_DEST_CURSOR/alpha" ]
 }
+
+@test "--import maps onto the import verb" {
+    run "$SCRIPTS_DIR/skills-compat.sh" --import --dry-run
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"now \`skills\`"* ]]
+    [[ "$output" == *"Running \`skills import --dry-run\`"* ]]
+}
+
+@test "--prune is passed through to sync" {
+    make_skill alpha
+    "$SCRIPTS_DIR/skills-compat.sh" >/dev/null
+    rm -rf "$SKILLS_DIR/alpha"
+    run "$SCRIPTS_DIR/skills-compat.sh" --prune
+    [ "$status" -eq 0 ]
+    [ ! -d "$SKILLS_DEST_CLAUDE/alpha" ]
+}

@@ -23,7 +23,7 @@ for arg in "$@"; do
     esac
 done
 
-printf '\033[1;33m⚠\033[0m skills-sync is now `skills`. Running `skills %s %s`.\n' \
-    "$VERB" "${ARGS[*]}" >&2
+printf '\033[1;33m⚠\033[0m skills-sync is now `skills`. Running `skills %s%s`.\n' \
+    "$VERB" "${ARGS[*]:+ ${ARGS[*]}}" >&2
 
 exec "$SCRIPT_DIR/skills.sh" "$VERB" "${ARGS[@]}"
