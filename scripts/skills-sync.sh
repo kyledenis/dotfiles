@@ -58,11 +58,11 @@ ERRORS=0
 
 declare -A TOOL_DEST TOOL_LAYOUT TOOL_FIELDS
 
-TOOL_DEST[claude]="$HOME/.claude/skills"
+TOOL_DEST[claude]="${SKILLS_DEST_CLAUDE:-$HOME/.claude/skills}"
 TOOL_LAYOUT[claude]="flat"
 TOOL_FIELDS[claude]="name description version"
 
-TOOL_DEST[cursor]="$HOME/.cursor/skills"
+TOOL_DEST[cursor]="${SKILLS_DEST_CURSOR:-$HOME/.cursor/skills}"
 TOOL_LAYOUT[cursor]="flat"
 TOOL_FIELDS[cursor]="name description"
 
