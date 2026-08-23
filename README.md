@@ -41,19 +41,27 @@ dotfiles add-apps           # Interactively add apps to Brewfile
 dotfiles sync               # Full sync: audit → add → commit
 ```
 
-### AI Skills Sync
+### AI Skills
 
-Distributes AI agent skills from a private canonical store (`~/.skills`) to each tool's expected directory with per-tool frontmatter transformation.
+One front door across three channels: skills you wrote, skills vendored from
+someone else's repo, and Claude Code plugins. Each channel has its own update
+mechanism; `skills` knows which is which so you don't have to.
 
 ```bash
-skills-create <name>       # Interactive skill scaffolding
-skills-sync                # Sync skills to all AI tools
-skills-sync --list         # List all skills and their targets
-skills-sync --dry-run      # Preview without writing
-skills-sync --prune        # Remove orphaned skills from tools
+skills                     # Status across all three channels (read-only)
+skills list                # Full registry with versions and targets
+skills sync                # Distribute ~/.skills to Claude Code and Cursor
+skills sync --dry-run      # Preview without writing
+skills sync --prune        # Remove orphaned skills from tools
+skills new <name>          # Interactive skill scaffolding
+skills import              # Adopt unmanaged skills out of tool dirs
 ```
 
-Skills are stored in a separate private repo (`~/.skills/`) and synced to `~/.claude/skills/` and `~/.cursor/skills/`. See [skills-sync.sh](scripts/skills-sync.sh) for details.
+Skills live in a separate private repo (`~/.skills/`) and sync to
+`~/.claude/skills/` and `~/.cursor/skills/` with per-tool frontmatter
+transformation. `skills-sync` still works and forwards to `skills`.
+
+Design: [2026-08-22-skills-cli-design.md](docs/superpowers/specs/2026-08-22-skills-cli-design.md).
 
 ### SSH Key Management
 
@@ -145,8 +153,12 @@ dotfiles/
 │   ├── stow-add.sh            # Add files to stow
 │   ├── sync-apps.sh           # App audit/sync
 │   ├── ssh-create.sh          # SSH key creation + 1Password
-│   ├── skills-sync.sh         # AI skills distribution
+│   ├── skills.sh              # AI skills front door
+│   ├── skills-sync.sh         # Sync engine (driven by `skills sync`)
+│   ├── skills-compat.sh       # skills-sync deprecation shim
 │   ├── skills-create.sh       # Interactive skill scaffolding
+│   ├── lib/                   # Shared skills helpers
+│   ├── tests/                 # bats tests
 │   ├── pre-commit             # Git hook
 │   └── patterns/              # Auto-adopt classification
 │

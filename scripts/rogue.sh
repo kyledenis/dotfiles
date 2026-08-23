@@ -196,13 +196,16 @@ show_scripts() {
 
 show_skills() {
     print_section "AI Skills"
-    print_cmd "skills-create <name>" "Create a new AI agent skill"
-    print_cmd "skills-sync" "Sync skills to all AI tools"
-    print_cmd "skills-sync --list" "List all skills and their targets"
-    print_cmd "skills-sync --dry-run" "Preview sync without writing"
-    print_cmd "skills-sync --prune" "Remove orphaned skills from tools"
-    print_cmd "skills-sync --tool X" "Sync to specific tool (claude, cursor)"
-    print_cmd "skills-sync --import" "Import unmanaged skills from tools"
+    echo ""
+    print_cmd "skills" "Status across all three channels"
+    printf "    %-20s ${DIM}%s${NC}\n" "" "Read-only — what you have and what has drifted"
+    print_cmd "skills list" "Full registry with versions and targets"
+    print_cmd "skills sync" "Distribute ~/.skills to Claude Code and Cursor"
+    print_cmd "skills new <name>" "Scaffold a new skill"
+    print_cmd "skills import" "Adopt unmanaged skills out of tool dirs"
+    echo ""
+    echo -e "  ${DIM}Channels: yours (~/.skills), vendored upstream, Claude plugins.${NC}"
+    echo -e "  ${DIM}Run${NC} ${GREEN}skills help${NC} ${DIM}for the full surface.${NC}"
     echo ""
 }
 

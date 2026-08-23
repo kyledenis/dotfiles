@@ -68,7 +68,7 @@ Arguments:
 
 Options:
     --edit          Open $EDITOR after creating the skill
-    --sync          Run skills-sync.sh after creation to distribute immediately
+    --sync          Distribute to Claude Code and Cursor immediately after creating
     --help          Show this help message
 
 Environment:
@@ -381,7 +381,7 @@ fi
 # Run sync
 if [ "$RUN_SYNC" = true ]; then
     print_step "Syncing skills"
-    "$SCRIPT_DIR/skills-sync.sh"
+    "$SCRIPT_DIR/skills.sh" sync
 fi
 
 # Git status
@@ -398,7 +398,7 @@ echo ""
 echo "  Next steps:"
 echo -e "    1. Edit the skill: ${DIM}\$EDITOR $SKILLS_DIR/$SKILL_NAME/SKILL.md${NC}"
 if [ "$RUN_SYNC" = false ]; then
-    echo -e "    2. Distribute:     ${DIM}skills-sync${NC}"
+    echo -e "    2. Distribute:     ${DIM}skills sync${NC}"
 fi
 echo -e "    3. Commit:         ${DIM}cd ~/.skills && git commit -m 'feat: add $SKILL_NAME skill'${NC}"
 echo ""

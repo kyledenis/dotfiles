@@ -283,15 +283,15 @@ if [ "$SKIP_DOTFILES" = false ]; then
 
     # Post-stow: sync AI skills (if private skills repo is cloned)
     if [ -d "$HOME/.skills" ]; then
-        if [ -f "$SCRIPT_DIR/../scripts/skills-sync.sh" ]; then
+        if [ -f "$SCRIPT_DIR/../scripts/skills.sh" ]; then
             print_info "Syncing AI skills..."
-            bash "$SCRIPT_DIR/../scripts/skills-sync.sh"
+            bash "$SCRIPT_DIR/../scripts/skills.sh" sync
             print_success "Skills synced to Claude Code and Cursor"
         fi
     else
         print_info "Skills repo not found. Clone it to enable AI skills:"
         echo "  git clone git@github.com:kyledenis/skills ~/.skills"
-        echo "  skills-sync"
+        echo "  skills sync"
     fi
 else
     print_warning "Skipping dotfile deployment"

@@ -317,7 +317,7 @@ if [ "$DELETE" = false ]; then
             SYNC_ARGS+=(--dry-run)
         fi
 
-        "$SCRIPT_DIR/skills-sync.sh" "${SYNC_ARGS[@]}" || print_warning "Skills sync encountered issues"
+        "$SCRIPT_DIR/skills.sh" sync "${SYNC_ARGS[@]}" || print_warning "Skills sync encountered issues"
     else
         print_info "Skills directory not found (~/.skills) — skipping skills sync"
     fi
