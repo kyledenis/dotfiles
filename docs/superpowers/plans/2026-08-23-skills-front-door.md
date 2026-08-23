@@ -160,7 +160,7 @@ teardown() { teardown_skills_env; }
     run "$SCRIPTS_DIR/skills-sync.sh"
     [ "$status" -eq 0 ]
     [ -f "$SKILLS_DEST_CLAUDE/.skills-sync.json" ]
-    run yq -p json '.skills | keys | .[]' "$SKILLS_DEST_CLAUDE/.skills-sync.json"
+    run yq -p json -o json '.skills | keys | .[]' "$SKILLS_DEST_CLAUDE/.skills-sync.json"
     [[ "$output" == *"alpha"* ]]
 }
 
