@@ -523,6 +523,9 @@ dotfiles() {
             dotfiles-review "$@"
             ;;
         # AI skills management
+        skills)
+            skills "$@"
+            ;;
         skills-create)
             skills-create "$@"
             ;;
@@ -1370,14 +1373,20 @@ ssh-list() {
 # AI Skills Management
 # ============================================================================
 
-# Create a new AI agent skill
+# One front door for AI agent skills — yours, vendored, and plugins
+skills() {
+    "$SYSTEM_DIR/dotfiles/scripts/skills.sh" "$@"
+}
+
+# Deprecated — use `skills new`
 skills-create() {
+    print -u2 -P "%F{yellow}⚠%f skills-create is now \`skills new\`."
     "$SYSTEM_DIR/dotfiles/scripts/skills-create.sh" "$@"
 }
 
-# Sync skills to all AI tools
+# Deprecated — use `skills`
 skills-sync() {
-    "$SYSTEM_DIR/dotfiles/scripts/skills-sync.sh" "$@"
+    "$SYSTEM_DIR/dotfiles/scripts/skills-compat.sh" "$@"
 }
 
 # File Transfer (arc-reactor)
