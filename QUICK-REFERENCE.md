@@ -74,6 +74,20 @@ venv-activate               # Activate existing venv
 pip-save <pkg>              # Install and save to requirements.txt
 ```
 
+## Media
+
+```bash
+yt-transcript <url>         # YouTube transcript as clean text
+yt-transcript <url> -c      # Same, copied to the clipboard
+yt-transcript <url> -t      # Timestamped, one line per cue
+yt-transcript <url> -j      # JSON with metadata and cue timings
+yt-transcript <url> --langs # Caption languages this video has
+```
+
+Reads the caption track YouTube already has, so there is no audio download.
+Prefers human-written captions and falls back to auto-generated. For a video
+with no captions at all, transcribe the audio with `whisper` instead.
+
 ## Network
 
 ```bash

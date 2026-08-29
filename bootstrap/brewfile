@@ -129,6 +129,7 @@ brew "neovim"                 # Hyperextensible Vim-based text editor
 brew "ffmpeg"                 # Video/audio processing
 brew "imagemagick"            # Image manipulation
 brew "exiftool"               # Read/write meta information
+brew "yt-dlp"                 # Video/caption downloader (yt-transcript)
 
 # Misc Utilities
 brew "stow"                   # Symlink farm manager (dotfiles)

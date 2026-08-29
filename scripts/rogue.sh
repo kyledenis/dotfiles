@@ -234,6 +234,24 @@ show_transfer() {
     echo ""
 }
 
+show_media() {
+    print_section "Media"
+    echo ""
+    print_cmd "yt-transcript <url>" "Fetch a YouTube video's transcript as text"
+    printf "    %-20s ${DIM}%s${NC}\n" "" "Reads YouTube's own captions - no download, about a second"
+    echo ""
+    echo -e "  ${DIM}Options${NC}"
+    print_cmd "-c, --copy" "Copy the transcript to the clipboard"
+    print_cmd "-t, --timestamps" "One line per cue, prefixed [m:ss]"
+    print_cmd "-j, --json" "Metadata and cue timings as JSON"
+    print_cmd "-o, --out FILE" "Write to a file instead of stdout"
+    print_cmd "--langs" "List the caption languages a video has"
+    echo ""
+    echo -e "  ${DIM}Prefers human-written captions, falls back to auto-generated.${NC}"
+    echo -e "  ${DIM}No captions at all? Fall back to${NC} ${GREEN}whisper${NC} ${DIM}on the audio.${NC}"
+    echo ""
+}
+
 show_all() {
     print_header "ROGUE - Dotfiles Quick Reference"
 
@@ -245,6 +263,7 @@ show_all() {
     show_skills
     show_ssh
     show_transfer
+    show_media
     show_network
     show_system
     show_dotfiles
@@ -266,6 +285,7 @@ show_help() {
     echo "  skills      AI skill management"
     echo "  ssh         SSH key management"
     echo "  transfer    File transfer (arc-reactor)"
+    echo "  media       YouTube transcripts and media tools"
     echo "  network     Network utilities"
     echo "  system      System utilities"
     echo "  dotfiles    Dotfiles management commands"
@@ -330,6 +350,10 @@ case "${1:-all}" in
     skills|sk)
         print_header "AI Skills"
         show_skills
+        ;;
+    media|yt)
+        print_header "Media"
+        show_media
         ;;
     all)
         show_all

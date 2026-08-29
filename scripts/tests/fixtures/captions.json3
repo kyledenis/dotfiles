@@ -1,0 +1,10 @@
+{
+  "wireMagic": "pb3",
+  "events": [
+    {"tStartMs": 0, "dDurationMs": 1000, "wpWinPosId": 1},
+    {"tStartMs": 1000, "dDurationMs": 2000, "segs": [{"utf8": "Hello"}, {"utf8": " world."}]},
+    {"tStartMs": 3000, "dDurationMs": 1000, "segs": [{"utf8": "\n"}]},
+    {"tStartMs": 4000, "dDurationMs": 2000, "segs": [{"utf8": "Second\ncue here."}]},
+    {"tStartMs": 30000, "dDurationMs": 2000, "segs": [{"utf8": "After a long gap."}]}
+  ]
+}

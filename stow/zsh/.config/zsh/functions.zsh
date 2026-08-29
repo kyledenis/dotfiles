@@ -1370,6 +1370,14 @@ ssh-list() {
     echo ""
 }
 
+# Media
+# ============================================================================
+
+# Pull a YouTube video's transcript as clean text
+yt-transcript() {
+    "$SYSTEM_DIR/dotfiles/scripts/yt-transcript.sh" "$@"
+}
+
 # AI Skills Management
 # ============================================================================
 
