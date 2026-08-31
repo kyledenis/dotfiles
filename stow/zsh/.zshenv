@@ -173,3 +173,6 @@ export GRADLE_USER_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/gradle"
 export POETRY_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/poetry"
 export POETRY_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/poetry"
 export POETRY_VIRTUALENVS_IN_PROJECT=true
+
+# Outrigger: Cargo-installed commands
+export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
