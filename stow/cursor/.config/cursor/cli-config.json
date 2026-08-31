@@ -9,11 +9,22 @@
   "editor": {
     "vimMode": false
   },
+  "model": {
+    "modelId": "default",
+    "displayModelId": "auto",
+    "displayName": "Auto",
+    "displayNameShort": "Auto",
+    "aliases": [
+      "auto"
+    ],
+    "maxMode": false
+  },
   "hasChangedDefaultModel": false,
+  "maxMode": false,
   "privacyCache": {
     "ghostMode": true,
     "privacyMode": 2,
-    "updatedAt": 1771043595639
+    "updatedAt": 1787321412438
   },
   "authInfo": {
     "email": "signup+cursor@kyleden.is",
@@ -32,17 +43,5 @@
   "attribution": {
     "attributeCommitsToAgent": true,
     "attributePRsToAgent": true
-  },
-  "model": {
-    "modelId": "claude-4.6-opus-high-thinking",
-    "displayModelId": "opus-4.6-thinking",
-    "displayName": "Claude 4.6 Opus (Thinking)",
-    "displayNameShort": "Opus 4.6 (Thinking)",
-    "aliases": [
-      "opus-4.6-thinking",
-      "claude-4.6-opus-thinking"
-    ],
-    "maxMode": false
-  },
-  "maxMode": false
+  }
 }
