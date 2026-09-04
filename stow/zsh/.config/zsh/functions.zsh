@@ -1871,3 +1871,264 @@ _dotfiles_pending_check() {
     add-zsh-hook precmd _dotfiles_show_pending
 }
 _dotfiles_pending_check
+
+# ============================================================================
+# Alias Management
+# ============================================================================
+
+# Palette, matching scripts/rogue.sh. Empty when not writing to a terminal.
+_mkalias_colours() {
+    if [ -t 1 ] && [ -t 2 ]; then
+        _MK_G=$'\033[0;32m'; _MK_Y=$'\033[1;33m'; _MK_C=$'\033[0;36m'
+        _MK_R=$'\033[0;31m'; _MK_D=$'\033[2m';    _MK_B=$'\033[1m'
+        _MK_N=$'\033[0m'
+    else
+        _MK_G=; _MK_Y=; _MK_C=; _MK_R=; _MK_D=; _MK_B=; _MK_N=
+    fi
+}
+
+# Decide whether an alias name is safe to take.
+# Return 0 to proceed, 1 to abort.
+#
+# Shadowing an external command is normal and often deliberate (cat='bat'),
+# so that only earns a note. Shadowing a keyword or a builtin can stop this
+# config from parsing, which means new shells fail to start — refuse those.
+_mkalias_check_collision() {
+    local name="$1" kind target
+    _mkalias_colours
+
+    kind="$(whence -w "$name" 2>/dev/null)"
+    kind="${kind##*: }"
+
+    case "$kind" in
+        reserved)
+            print -u2 -r -- "${_MK_R}⚠${_MK_N}  ${_MK_B}${name}${_MK_N} is a shell keyword ${_MK_D}— aliasing it can stop your config parsing${_MK_N}"
+            return 1
+            ;;
+        builtin)
+            print -u2 -r -- "${_MK_R}⚠${_MK_N}  ${_MK_B}${name}${_MK_N} is a zsh builtin ${_MK_D}— define a function instead if you mean it${_MK_N}"
+            return 1
+            ;;
+        command|hashed)
+            target="$(command -v "$name" 2>/dev/null)"
+            print -u2 -r -- "${_MK_Y}⚠${_MK_N}  ${_MK_B}${name}${_MK_N} shadows ${_MK_D}${target}${_MK_N}"
+            return 0
+            ;;
+    esac
+    return 0
+}
+
+# Persist an alias to your zsh config and define it in this shell.
+# Managed lines live between the MKALIAS markers, so hand-written aliases
+# elsewhere in the file are never touched.
+#
+# Usage: mkalias                    list every alias, managed ones first
+#        mkalias --managed          list only what mkalias can edit
+#        mkalias name='command'     add, or update in place (no-op if identical)
+#        mkalias --remove name      remove (also -d, or `rmalias name`)
+mkalias() {
+    local file="${MKALIAS_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/zsh/zshrc}"
+    local begin='# MKALIAS:START' end='# MKALIAS:END'
+    local name value new tmp existed oldvalue
+    _mkalias_colours
+
+    if [ ! -w "$file" ]; then
+        print -u2 -r -- "${_MK_R}⚠${_MK_N}  cannot write to ${_MK_D}${file/#$HOME/~}${_MK_N}"
+        return 1
+    fi
+
+    # Create the managed block on first use
+    if ! grep -qxF "$begin" "$file"; then
+        printf '\n%s\n%s\n' "$begin" "$end" >> "$file"
+    fi
+
+    # No arguments: list what we manage
+    # Listing. Managed rows are read from the file, which is the source of
+    # truth even in a shell that has not sourced it yet; unmanaged rows come
+    # from zsh's own alias table.
+    local title="Add aliases"
+    if [ "$1" = "--title" ]; then
+        title="$2"
+        shift 2
+    fi
+
+    if [ $# -eq 0 ] || [ "$1" = "--managed" ]; then
+        local -a mrows mnames others
+        local n v row rule
+        mrows=("${(@f)$(awk -v b="$begin" -v e="$end" '
+            $0 == b { inb = 1; next }
+            $0 == e { inb = 0 }
+            inb && /^alias / {
+                sub(/^alias /, "")
+                eq = index($0, "=")
+                printf "%s\t%s\n", substr($0, 1, eq - 1), substr($0, eq + 2, length($0) - eq - 2)
+            }
+        ' "$file")}")
+
+        mrows=("${(@o)mrows}")
+
+        if [ "$1" != "--managed" ]; then
+            print -r -- ""
+            rule="$(printf '─%.0s' {1..${#title}})"
+            print -r -- "  ${_MK_Y}${_MK_B}${title}${_MK_N}"
+            print -r -- "  ${_MK_D}${rule}${_MK_N}"
+        fi
+        print -r -- ""
+        print -r -- "  ${_MK_D}managed${_MK_N}"
+        if [ -z "${mrows[1]}" ]; then
+            print -r -- "    ${_MK_D}(none yet)${_MK_N}"
+        else
+            for row in "${mrows[@]}"; do
+                n="${row%%$'\t'*}"
+                v="${row#*$'\t'}"
+                v=${v//"'\\''"/"'"}
+                mnames+=("$n")
+                printf "    ${_MK_G}%-20s${_MK_N} %s\n" "$n" "$v"
+            done
+        fi
+        print -r -- ""
+
+        [ "$1" = "--managed" ] && return 0
+
+        for n in ${(ko)aliases}; do
+            [[ " ${mnames[*]} " == *" $n "* ]] || others+=("$n")
+        done
+        if (( ${#others} )); then
+            print -r -- "  ${_MK_D}unmanaged (${#others})${_MK_N}"
+            for n in "${others[@]}"; do
+                printf "    ${_MK_G}%-20s${_MK_N} %s\n" "$n" "${aliases[$n]}"
+            done
+            print -r -- ""
+            print -r -- "  ${_MK_D}Only managed aliases can be edited — they live in${_MK_N} ${file/#$HOME/~}"
+            print -r -- ""
+        fi
+        print -r -- "  ${_MK_D}Add with${_MK_N} ${_MK_G}mkalias <name>='<command>'${_MK_N}${_MK_D}, remove with${_MK_N} ${_MK_G}rmalias <name>${_MK_N}${_MK_D}.${_MK_N}"
+        print -r -- ""
+        return 0
+    fi
+
+    if [ "$1" = "-d" ] || [ "$1" = "--remove" ]; then
+        name="$2"
+        if [ -z "$name" ]; then
+            print -u2 -r -- "${_MK_D}usage:${_MK_N} mkalias --remove <name>"
+            return 1
+        fi
+    else
+        case "$1" in
+            *=*) ;;
+            *) print -u2 -r -- "${_MK_D}usage:${_MK_N} mkalias <name>='<command>'" ; return 1 ;;
+        esac
+        name="${1%%=*}"
+        value="${1#*=}"
+        if [ -z "$value" ]; then
+            print -u2 -r -- "${_MK_R}⚠${_MK_N}  no command given for ${_MK_B}${name}${_MK_N}"
+            return 1
+        fi
+        new="alias ${name}=${(qq)value}"
+    fi
+
+    if [[ -z "$name" || "$name" == -* || "$name" == *[[:space:]=\']* ]]; then
+        print -u2 -r -- "${_MK_R}⚠${_MK_N}  ${_MK_B}${name}${_MK_N} is not a usable alias name"
+        return 1
+    fi
+
+    existed=$(MKALIAS_NEW="$new" MKALIAS_NAME="$name" awk -v b="$begin" -v e="$end" '
+        BEGIN { new = ENVIRON["MKALIAS_NEW"]; pfx = "alias " ENVIRON["MKALIAS_NAME"] "="; plen = length(pfx) }
+        $0 == b { inb = 1; next }
+        $0 == e { inb = 0 }
+        inb && substr($0, 1, plen) == pfx {
+            found = ($0 == new && new != "") ? 2 : 1
+        }
+        END { print found + 0 }
+    ' "$file")
+
+    # Already on disk with this exact value: nothing to write. Still define it
+    # in this shell, which may not have sourced the file since it was added.
+    if [ "$existed" = "2" ]; then
+        builtin alias "${name}=${value}"
+        print -r -- "${_MK_D}=${_MK_N}  unchanged ${_MK_B}${name}${_MK_N} ${_MK_D}→ ${value}${_MK_N}"
+        return 0
+    fi
+
+    if [ -z "$new" ] && [ "$existed" = "0" ]; then
+        print -u2 -r -- "${_MK_R}⚠${_MK_N}  ${_MK_B}${name}${_MK_N} is not a managed alias"
+        return 1
+    fi
+
+    # Capture what we are about to drop, so the message can report it.
+    # The running shell is the source of truth when the alias is loaded;
+    # fall back to parsing the file for a shell that has not re-sourced yet.
+    if [ -z "$new" ]; then
+        oldvalue="${aliases[$name]}"
+        if [ -z "$oldvalue" ]; then
+            oldvalue=$(MKALIAS_NAME="$name" awk -v b="$begin" -v e="$end" '
+                BEGIN { pfx = "alias " ENVIRON["MKALIAS_NAME"] "="; plen = length(pfx) }
+                $0 == b { inb = 1; next }
+                $0 == e { inb = 0 }
+                inb && substr($0, 1, plen) == pfx {
+                    eq = index($0, "=")
+                    print substr($0, eq + 2, length($0) - eq - 2)
+                    exit
+                }
+            ' "$file")
+            oldvalue=${oldvalue//"'\\''"/"'"}
+        fi
+    fi
+
+    [ -n "$new" ] && { _mkalias_check_collision "$name" || return 1; }
+
+    # Rewrite the managed block: replace the matching line, or insert before END
+    # NOTE: `new` goes through the environment, not `awk -v`. awk applies
+    # backslash escape processing to -v assignments, which both mangles
+    # values containing \e and breaks the \' escaping that (qq) emits.
+    tmp="${file}.mkalias.$$"
+    MKALIAS_NEW="$new" MKALIAS_NAME="$name" awk -v b="$begin" -v e="$end" '
+        BEGIN { new = ENVIRON["MKALIAS_NEW"]; pfx = "alias " ENVIRON["MKALIAS_NAME"] "="; plen = length(pfx) }
+        $0 == b { print; inb = 1; n = 0; next }
+        $0 == e {
+            if (inb && new != "") rows[n++] = new
+            for (i = 1; i < n; i++) {
+                v = rows[i]
+                for (j = i - 1; j >= 0 && rows[j] > v; j--) rows[j + 1] = rows[j]
+                rows[j + 1] = v
+            }
+            for (i = 0; i < n; i++) print rows[i]
+            inb = 0
+        }
+        inb && substr($0, 1, plen) == pfx { next }
+        inb && /^alias / { rows[n++] = $0; next }
+        { print }
+    ' "$file" > "$tmp" || { rm -f "$tmp"; echo "Error: could not rewrite $file"; return 1; }
+
+    if [ ! -s "$tmp" ]; then
+        rm -f "$tmp"
+        print -u2 -r -- "${_MK_R}⚠${_MK_N}  refusing to write an empty ${_MK_D}${file/#$HOME/~}${_MK_N}"
+        return 1
+    fi
+
+    mv "$tmp" "$file" || { rm -f "$tmp"; return 1; }
+
+    # Apply to the running shell so it works immediately
+    if [ -n "$new" ]; then
+        builtin alias "${name}=${value}"
+        if [ "$existed" = "1" ]; then
+            print -r -- "${_MK_C}↻${_MK_N}  updated ${_MK_B}${name}${_MK_N} ${_MK_D}→ ${value}${_MK_N}"
+        else
+            print -r -- "${_MK_G}✓${_MK_N}  added ${_MK_B}${name}${_MK_N} ${_MK_D}→ ${value}${_MK_N}"
+        fi
+    else
+        builtin unalias "$name" 2>/dev/null
+        print -r -- "${_MK_R}✗${_MK_N}  removed ${_MK_B}${name}${_MK_N} ${_MK_D}→ ${oldvalue}${_MK_N}"
+    fi
+}
+
+# Remove a managed alias. A thin wrapper over `mkalias --remove`, so that
+# mkdir/rmdir muscle memory works in either direction.
+rmalias() {
+    _mkalias_colours
+    if [ $# -eq 0 ]; then
+        mkalias --title "Remove aliases" >&2
+        return 1
+    fi
+    mkalias --remove "$@"
+}

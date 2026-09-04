@@ -55,24 +55,26 @@ fi
   && source "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/functions.zsh"
 
 # --------------------------------------------------
-# Quality of life
+# Aliases — managed by mkalias, edit with `mkalias`, not by hand
 # --------------------------------------------------
+# MKALIAS:START
+alias ..='cd ..'
+alias cat='bat'
+alias cla='claude'
+alias cls='clear'
+alias ga='git add'
+alias gc='git commit'
+alias gp='git push'
+alias gs='git status'
 alias l='eza'
 alias la='eza -a'
 alias ll='eza -lah'
 alias lsa='eza -la'
 alias lt='eza -T'
-alias cat='bat'
-
-alias ..='cd ..'
-
-alias gs='git status'
-alias ga='git add'
-alias gc='git commit'
-alias gp='git push'
-
-alias cla='claude'
 alias reload='exec zsh'
+alias run-help='man'
+alias which-command='whence'
+# MKALIAS:END
 
 # --------------------------------------------------
 # Syntax + Suggestions
