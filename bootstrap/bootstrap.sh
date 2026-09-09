@@ -219,6 +219,18 @@ if [ "$SKIP_DOTFILES" = false ]; then
         exit 1
     fi
 
+    # Packages whose target directory also holds state the application writes.
+    # Stow folds an absent target into a single directory symlink, which on a
+    # fresh machine would make ~/.claude the repository itself.
+    NO_FOLD_PACKAGES=("claude")
+
+    stow_flags() {
+        local package="$1" p
+        for p in "${NO_FOLD_PACKAGES[@]}"; do
+            [ "$p" = "$package" ] && { echo "--no-folding"; return; }
+        done
+    }
+
     # Navigate to stow directory
     cd "$STOW_DIR" || exit 1
 
@@ -236,12 +248,12 @@ if [ "$SKIP_DOTFILES" = false ]; then
 
         for package in "${STOW_PACKAGES[@]}"; do
             # Check if package would conflict
-            if stow -n -v -t "$HOME" "$package" 2>&1 | grep -q "existing"; then
+            if stow -n -v $(stow_flags "$package") -t "$HOME" "$package" 2>&1 | grep -q "existing"; then
                 print_warning "Conflicts detected for $package, backing up..."
                 mkdir -p "$BACKUP_DIR"
 
                 # Find conflicting files and back them up
-                stow -n -v -t "$HOME" "$package" 2>&1 | grep "existing" | while read -r line; do
+                stow -n -v $(stow_flags "$package") -t "$HOME" "$package" 2>&1 | grep "existing" | while read -r line; do
                     if [[ $line =~ existing\ target\ is\ (.+)\ not ]]; then
                         conflicting_file="${BASH_REMATCH[1]}"
                         if [ -e "$HOME/$conflicting_file" ]; then
@@ -258,7 +270,7 @@ if [ "$SKIP_DOTFILES" = false ]; then
         print_info "Deploying dotfiles..."
         for package in "${STOW_PACKAGES[@]}"; do
             print_info "Stowing $package..."
-            if stow -t "$HOME" "$package" 2>&1; then
+            if stow $(stow_flags "$package") -t "$HOME" "$package" 2>&1; then
                 print_success "$package deployed"
             else
                 print_error "$package deployment failed"
@@ -281,17 +293,23 @@ if [ "$SKIP_DOTFILES" = false ]; then
         print_success "Git hooks installed"
     fi
 
+    # Post-stow: point Claude Code at the stow-managed status line
+    if [ -f "$SCRIPT_DIR/../scripts/claude-statusline.sh" ]; then
+        print_info "Configuring Claude status line..."
+        bash "$SCRIPT_DIR/../scripts/claude-statusline.sh"
+    fi
+
     # Post-stow: sync AI skills (if private skills repo is cloned)
     if [ -d "$HOME/.skills" ]; then
-        if [ -f "$SCRIPT_DIR/../scripts/skills-sync.sh" ]; then
+        if [ -f "$SCRIPT_DIR/../scripts/skills.sh" ]; then
             print_info "Syncing AI skills..."
-            bash "$SCRIPT_DIR/../scripts/skills-sync.sh"
+            bash "$SCRIPT_DIR/../scripts/skills.sh" sync
             print_success "Skills synced to Claude Code and Cursor"
         fi
     else
         print_info "Skills repo not found. Clone it to enable AI skills:"
         echo "  git clone git@github.com:kyledenis/skills ~/.skills"
-        echo "  skills-sync"
+        echo "  skills sync"
     fi
 else
     print_warning "Skipping dotfile deployment"
