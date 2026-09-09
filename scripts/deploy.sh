@@ -317,6 +317,26 @@ fi
 cd - > /dev/null
 
 ################################################################################
+# Claude Status Line
+################################################################################
+
+if [ "$DELETE" = false ]; then
+    for package in "${PACKAGES[@]}"; do
+        if [ "$package" = "claude" ]; then
+            print_header "Configuring Claude Status Line"
+
+            STATUSLINE_ARGS=()
+            if [ "$DRY_RUN" = true ]; then
+                STATUSLINE_ARGS+=(--dry-run)
+            fi
+
+            "$SCRIPT_DIR/claude-statusline.sh" "${STATUSLINE_ARGS[@]}" || print_warning "Status line configuration encountered issues"
+            break
+        fi
+    done
+fi
+
+################################################################################
 # Skills Sync
 ################################################################################
 
