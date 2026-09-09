@@ -286,11 +286,11 @@ cd "$STOW_DIR"
 
 # Unstow first if forcing
 if [ "$FORCE_MODE" = true ]; then
-    stow -D "$PACKAGE_NAME" 2>/dev/null || true
+    stow -D -t "$HOME" "$PACKAGE_NAME" 2>/dev/null || true
 fi
 
 # Stow the package
-stow -v "$PACKAGE_NAME" 2>&1 | grep -v "^LINK:" || true
+stow -v -t "$HOME" "$PACKAGE_NAME" 2>&1 | grep -v "^LINK:" || true
 
 print_success "Symlinked: $FILE_PATH -> $TARGET_PATH"
 
