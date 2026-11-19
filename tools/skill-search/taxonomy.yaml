@@ -1,0 +1,234 @@
+# skill-search default taxonomy, v1.
+# Two axes. A skill can land in any number of entries on either axis.
+#   activities: what the agent is doing right now, read at the moment of action
+#   domains:    the technology or context the work is in, recognisable from the files
+# `when` is the index line the agent reads and the classifier question:
+#   "Would an AI coding agent that is <when> be better off opening this skill?"
+# `yes` and `no` sharpen the boundary for the classifier; they are not shown in the index.
+
+version: 1
+
+activities:
+  understand:
+    - id: read-unfamiliar-code
+      when: working out how unfamiliar code works, or where a change should live
+      yes: codebase tours, mapping modules and call paths, finding where behaviour lives
+      no: reading an external API's documentation
+    - id: trace-history
+      when: finding out why code was built the way it was, from history, commits or past sessions
+      yes: git blame, log and history archaeology, past decisions, transcripts of earlier sessions
+      no: researching external sources; tool overviews
+    - id: research-docs
+      when: looking up current docs, API signatures or platform limits before relying on memory
+    - id: resume-work
+      when: resuming earlier work and recovering context from a previous session or handoff
+      yes: handoff notes, session logs, progress files, reading what a previous agent left behind
+      no: starting new work; reading git history to learn why code exists
+    - id: find-skill
+      when: unsure which skill, workflow or tool fits the task in front of it
+      yes: an index, router or catalogue that points to other skills or workflows across topics
+      no: a platform skill that covers many features of one product
+
+  plan:
+    - id: clarify-requirements
+      when: clarifying vague requirements or stress-testing a plan by questioning the user
+    - id: write-spec
+      when: writing a spec, design doc or implementation plan before building
+    - id: file-tickets
+      when: breaking work into issues or tickets, or triaging an issue tracker
+    - id: design-architecture
+      when: designing architecture, module boundaries or the interface between components
+    - id: model-data
+      when: modelling data, state or types before writing the code that uses them
+    - id: compare-options
+      when: comparing several design or implementation options, or prototyping to decide
+    - id: choose-dependency
+      when: choosing a library, framework, service or provider
+    - id: sequence-large-change
+      when: planning the order of a large change, rewrite or migration so each step can be checked
+    - id: product-tradeoff
+      when: making a product or user-experience trade-off, or questioning whether a requirement should exist
+
+  build:
+    - id: implement-feature
+      when: writing the code for a feature or plan in a general-purpose way, with no more specific activity fitting
+      yes: general coding discipline, how to execute a plan step by step, house style for writing code
+      no: skills whose value is a specific technology, UI, tests, SQL or deployment; those belong to their own activity
+    - id: write-tests
+      when: writing tests, working test-first, or adding a regression test for a bug
+    - id: refactor
+      when: refactoring, simplifying, deleting code or reducing a diff
+    - id: error-handling
+      when: handling errors, validating input or deciding what to trust at a boundary
+    - id: concurrency
+      when: writing concurrent, parallel, retryable or idempotent operations
+    - id: upgrade-migrate
+      when: upgrading a dependency or migrating code from one API or framework to another
+      yes: version upgrade guides, codemods, deprecations, moving between frameworks or SDK versions
+      no: general refactoring with no version or API change; current-version API reference
+    - id: scaffold-project
+      when: scaffolding or bootstrapping a new project, app or package
+    - id: configure-tooling
+      when: configuring developer tooling for a repo (linters, formatters, git hooks, build or test runners, CI pipelines)
+      yes: setting up ESLint, Prettier, Husky, tsconfig, bundlers, GitHub Actions workflows
+      no: configuring a cloud product, an agent or Claude Code itself; installing an app for the user
+    - id: secrets-auth
+      when: handling secrets, credentials, environment variables or authentication
+      yes: API keys, tokens, env files, auth flows, sign-in, permissions
+      no: input validation in general; platform best-practice reviews
+    - id: build-ai-feature
+      when: building an AI feature, chatbot or agent into an application
+    - id: use-cloud-service
+      when: calling or configuring a specific cloud platform's service, SDK or CLI from code
+      yes: storage, queues, functions, databases or AI gateways of a named provider (Vercel, Cloudflare, Supabase, AWS)
+      no: generic deployment advice with no provider; choosing between providers
+    - id: write-sql
+      when: writing SQL, a schema, migrations or database queries
+
+  design:
+    - id: design-ui
+      when: designing an interface, landing page or visual direction
+    - id: build-ui
+      when: building UI components or pages in code
+    - id: animate-ui
+      when: adding, tuning or deciding whether to add animation and motion to an interface
+    - id: polish-ui
+      when: polishing or reviewing UI details, interaction feel or visual quality
+    - id: accessibility
+      when: checking or fixing accessibility, keyboard navigation, contrast or ARIA
+    - id: ui-copy
+      when: writing or reviewing text that appears in an interface
+      yes: wording of labels, buttons, errors, empty states and other interface text
+      no: captions in videos, accessibility debugging, output formatting for an agent
+    - id: design-to-code
+      when: moving between a design file and code in either direction
+    - id: author-in-figma
+      when: creating or editing designs, components or variables directly inside Figma or FigJam
+      yes: writing to a Figma file through its API or plugin tools
+      no: reading a design to implement it in code (that is design-to-code)
+
+  verify:
+    - id: debug-failure
+      when: debugging a failure, a failing or flaky test, or a bug whose cause is unknown
+    - id: debug-browser
+      when: debugging a web page in the browser (network, cookies, memory, console)
+    - id: debug-build-ci
+      when: fixing a broken build or failing CI checks
+    - id: measure-performance
+      when: measuring, profiling or improving performance, or reporting a speedup
+    - id: verify-done
+      when: about to say work is done, fixed or passing
+    - id: run-evals
+      when: running evals, training runs or prompt optimisation and judging the results
+      yes: eval harnesses, RL environments, benchmark suites for models, prompt tuning loops
+      no: ordinary unit or integration tests of application code
+
+  review:
+    - id: review-diff
+      when: reviewing a diff or branch for bugs, regressions and risk
+    - id: review-quality
+      when: reviewing code for maintainability, structure and readability
+    - id: review-security
+      when: reviewing code or configuration for security vulnerabilities
+    - id: review-tests
+      when: reviewing whether tests are meaningful and complete
+    - id: respond-to-review
+      when: responding to review comments or applying review feedback
+      yes: how to receive review comments, verify a suggestion before applying it, push back or reply to a reviewer
+      no: coding best-practice guides for a framework or language
+
+  ship:
+    - id: commit
+      when: committing work or deciding how to split it into commits
+    - id: open-pr
+      when: opening a pull request or writing its description
+    - id: land-pr
+      when: driving a pull request to merge (conflicts, CI, review threads)
+    - id: deploy-operate
+      when: deploying, rolling back, or operating a running service
+
+  write:
+    - id: write-docs
+      when: writing documentation, a README or other technical prose
+      yes: how to write or structure documentation, READMEs, guides or reference pages
+      no: a product or SDK guide that is itself documentation for writing code
+    - id: write-reply
+      when: writing the final reply or status report to the user
+    - id: explain
+      when: explaining a concept or code to the user so they understand it
+      yes: teaching, walkthroughs, explaining concepts to a person, pitching the depth of an explanation
+      no: writing repo documentation; writing a final status report
+    - id: write-longform
+      when: drafting an article, essay or social post
+    - id: write-marketing
+      when: writing marketing copy, content strategy or SEO work
+    - id: make-visual-explainer
+      when: making a diagram, illustration, spec sheet or interactive explainer
+    - id: make-slides
+      when: making a slide deck or presentation
+    - id: make-video
+      when: making a video, including scripting, captions, voice-over, audio and rendering
+    - id: organise-notes
+      when: organising notes, a knowledge base or a personal vault
+      yes: Obsidian or Markdown vaults, linking and filing notes, maintaining a wiki of what was learned
+      no: writing documentation for a code repo
+
+  agent:
+    - id: delegate
+      when: handing work to subagents or another model, or coordinating several of them in parallel
+      yes: how to brief a subagent, when to fan out, orchestration patterns, model tier choice
+      no: a skill that happens to spawn one helper internally while doing something else
+    - id: run-autonomously
+      when: working a long task without the user, deciding when to stop and ask and keeping a record
+      yes: autonomy loops, checkpoints, when to escalate, progress logs for an absent user
+      no: a skill whose steps simply require no questions
+    - id: manage-context
+      when: the context window is filling up, or planning how to keep it small
+      yes: context window budgets, compaction, offloading work to subagents to save context, keeping prompts short
+      no: general simplicity or diff-size principles
+    - id: author-agent-instructions
+      when: writing or editing a skill, agent prompt, CLAUDE.md or AGENTS.md
+    - id: extend-claude-code
+      when: building or configuring Claude Code plugins, hooks, commands or MCP servers
+    - id: capture-lessons
+      when: reflecting on a session or turning a repeated mistake into a rule or check
+    - id: wrap-up
+      when: wrapping up a session, handing off, or summarising work done
+
+domains:
+  - id: video
+    when: working on video, motion graphics or rendered animation (HyperFrames, Remotion, ffmpeg)
+  - id: vercel
+    when: working with the Vercel platform (deployments, functions, storage, AI Gateway, Workflow)
+  - id: nextjs-react
+    when: working in a Next.js or React codebase
+  - id: cloudflare
+    when: working with Cloudflare (Workers, Durable Objects, Wrangler, Zero Trust)
+  - id: figma
+    when: working with Figma, FigJam or Figma Slides
+  - id: supabase-postgres
+    when: working with Supabase or Postgres
+  - id: apple
+    when: working on Swift, SwiftUI or Apple platform apps
+  - id: dotnet
+    when: working in .NET or C#
+  - id: typescript
+    when: working in TypeScript
+    yes: TypeScript types, tsconfig, type-level patterns, TypeScript-specific libraries or tooling
+    no: framework or JavaScript advice that does not depend on TypeScript
+  - id: rl-environments
+    when: working on RL environments, evals or training with verifiers or Prime Intellect
+  - id: claude-code
+    when: working on Claude Code itself (skills, plugins, hooks, settings, channels)
+  - id: git-github
+    when: working with git history, branches, worktrees or GitHub
+  - id: issue-tracker
+    when: working with an issue tracker (GitHub Issues, Linear)
+  - id: browser-automation
+    when: driving a real browser (Chrome DevTools, Playwright)
+  - id: local-machine
+    when: working on the local machine itself (shell, processes, disk, notes vaults)
+  - id: math
+    when: working with mathematics, proofs or Lean
+  - id: personal-workflow
+    when: doing the user's own personal routines (social posts, timesheets, taste checks)

@@ -1,0 +1,28 @@
+{
+  "name": "skill-search",
+  "version": "0.1.0",
+  "description": "Routes coding agents to the right skill for the moment they are in",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "skill-search": "skill/scripts/skill-search.mjs"
+  },
+  "files": [
+    "skill",
+    "taxonomy.yaml"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "esbuild src/cli.ts --bundle --platform=node --format=esm --target=node20 --outfile=skill/scripts/skill-search.mjs --banner:js=\"#!/usr/bin/env node\nimport { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" && chmod +x skill/scripts/skill-search.mjs && cp taxonomy.yaml skill/taxonomy.yaml",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2",
+    "yaml": "2.9.1"
+  }
+}
