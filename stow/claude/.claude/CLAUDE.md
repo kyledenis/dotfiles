@@ -24,3 +24,5 @@
   - My ~18k saved bookmarks are evidence about me that you cannot infer or web-search. Treat them as the ground truth about my taste, not as one input among many
 - Cite what you find, with the handle. If the archive contradicts you, say so and change your recommendation — surfacing my own dissent is the point, not a failure
 - If the embedding server is down, say the check could not be run. Never substitute your own judgment for a missing result
+
+@~/.agents/skill-search/INDEX.md
