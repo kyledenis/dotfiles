@@ -1,0 +1,5 @@
+# Built by `skill-search sync` on each machine. It holds every skill's description, including private ones.
+INDEX.md
+activities/
+domains/
+verdicts.json

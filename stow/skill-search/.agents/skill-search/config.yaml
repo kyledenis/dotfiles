@@ -1,0 +1,9 @@
+exclude: ["synced:*", "codex:*"]
+private: ["claude:*", "rogue:*", "cursor:*"]
+classifier: jev
+filer: {command: claude, model: sonnet, max: 10}
+jev:
+  keyFile: ~/.config/engram/.env
+sources:
+  - name: rogue
+    path: ~/.skills

@@ -1,0 +1,206 @@
+# Corrections to the classifier, keyed by skill name (or full id when two sources share a name).
+# add: [entry ids] pins, remove: [entry ids] drops, tier: ask|normal sets "ask first", hide: true leaves it out.
+# 2026-10-15: removals from a Sonnet review of each entry's top 6, checked by Opus.
+a11y-debugging:
+  remove:
+    - ui-copy
+agent-development:
+  remove:
+    - build-ai-feature
+agents-sdk:
+  remove:
+    - concurrency
+automate-me:
+  remove:
+    - implement-feature
+brainstorm:
+  remove:
+    - compare-options
+brainstorming:
+  remove:
+    - build-ai-feature
+chat-sdk:
+  remove:
+    - explain
+cloudflare:
+  remove:
+    - find-skill
+code-review:
+  remove:
+    - issue-tracker
+codex-result-handling:
+  remove:
+    - ui-copy
+    - verify-done
+    - write-reply
+create-a-backend:
+  remove:
+    - supabase-postgres
+debug-optimize-lcp:
+  remove:
+    - explain
+desktop-commander-overview:
+  remove:
+    - read-unfamiliar-code
+    - trace-history
+env-vars:
+  remove:
+    - scaffold-project
+    - write-docs
+executing-plans:
+  remove:
+    - configure-tooling
+figma-spec:
+  remove:
+    - make-visual-explainer
+figma-use-motion:
+  remove:
+    - animate-ui
+flags-sdk:
+  remove:
+    - commit
+gpt-5-4-prompting:
+  remove:
+    - author-agent-instructions
+hook-development:
+  remove:
+    - error-handling
+hyperframes:
+  remove:
+    - find-skill
+hyperframes-cli:
+  remove:
+    - debug-build-ci
+hyperframes-core:
+  remove:
+    - commit
+hyperframes-registry:
+  remove:
+    - design-ui
+implement:
+  remove:
+    - write-sql
+next-cache-components:
+  remove:
+    - write-docs
+next-upgrade:
+  remove:
+    - open-pr
+no-comments:
+  remove:
+    - accessibility
+npx:shadcn:
+  remove:
+    - design-to-code
+optimizing-ef-core-queries:
+  remove:
+    - respond-to-review
+plugin-settings:
+  remove:
+    - local-machine
+plugin:mattpocock-skills/teach:
+  remove:
+    - implement-feature
+    - organise-notes
+plugin:vercel/shadcn:
+  remove:
+    - explain
+principle-boundary-discipline:
+  remove:
+    - secrets-auth
+principle-build-the-lever:
+  remove:
+    - write-sql
+principle-encode-lessons-in-structure:
+  remove:
+    - manage-context
+principle-laziness-protocol:
+  remove:
+    - manage-context
+principle-never-block-on-the-human:
+  remove:
+    - configure-tooling
+principle-sequence-verifiable-units:
+  remove:
+    - write-tests
+principle-subtract-before-you-add:
+  remove:
+    - manage-context
+queues:
+  remove:
+    - write-docs
+remotion-best-practices:
+  remove:
+    - find-skill
+remotion-captions:
+  remove:
+    - ui-copy
+remotion-docs:
+  remove:
+    - make-slides
+remotion-interactivity:
+  remove:
+    - make-visual-explainer
+remotion-upgrade:
+  remove:
+    - open-pr
+research:
+  remove:
+    - trace-history
+runtime-cache:
+  remove:
+    - write-docs
+searching-sourcegraph:
+  remove:
+    - review-diff
+session-report:
+  remove:
+    - resume-work
+    - trace-history
+supabase-postgres-best-practices:
+  remove:
+    - deploy-operate
+    - sequence-large-change
+swiftui-expert-skill:
+  remove:
+    - respond-to-review
+thermos:
+  remove:
+    - delegate
+triage:
+  remove:
+    - resume-work
+typesafe-ai:
+  remove:
+    - error-handling
+typescript-best-practices:
+  remove:
+    - respond-to-review
+vercel-connect:
+  remove:
+    - issue-tracker
+vercel-firewall:
+  remove:
+    - review-security
+vercel-react-best-practices:
+  remove:
+    - respond-to-review
+vercel-storage:
+  remove:
+    - upgrade-migrate
+wayfinder:
+  remove:
+    - read-unfamiliar-code
+workers-best-practices:
+  remove:
+    - respond-to-review
+    - secrets-auth
+workflow:
+  remove:
+    - run-autonomously
+writing-skills:
+  remove:
+    - review-tests
+
+skill-search:
+  tier: normal  # searching is read-only; setup steps already ask before changing config
