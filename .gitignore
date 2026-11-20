@@ -99,3 +99,6 @@ dotfiles-old/
 
 # Git internal
 .git/
+
+# Local service credentials
+stow/opencode/.config/opencode/service.json
