@@ -76,6 +76,13 @@ stow/ssh/.ssh/*_ed25519
 stow/ssh/.ssh/known_hosts
 stow/ssh/.ssh/authorized_keys
 
+# Claude Code: ~/.claude is mostly runtime state — session transcripts,
+# caches, plugins, permission grants. This repository is public, so the claude
+# package is an allowlist: nothing lands in it without being named here.
+stow/claude/.claude/*
+!stow/claude/.claude/CLAUDE.md
+!stow/claude/.claude/statusline-command.sh
+
 # GPG
 stow/**/.gnupg/
 

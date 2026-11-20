@@ -32,6 +32,18 @@ DOTFILES_DIR="$(dirname "$SCRIPT_DIR")"
 STOW_DIR="$DOTFILES_DIR/stow"
 TARGET_DIR="$HOME"
 
+# Packages whose target directory also holds state the application writes.
+# Stow folds an absent target into a single directory symlink, which would put
+# that runtime state inside this repository.
+NO_FOLD_PACKAGES=("claude")
+
+stow_flags() {
+    local package="$1" p
+    for p in "${NO_FOLD_PACKAGES[@]}"; do
+        [ "$p" = "$package" ] && { echo "--no-folding"; return; }
+    done
+}
+
 # Options
 RESTOW=false
 DELETE=false
@@ -199,7 +211,7 @@ if [ "$FORCE" = false ] && [ "$DELETE" = false ] && [ "$DRY_RUN" = false ]; then
         # Check if stow would conflict
         cd "$STOW_DIR"
 
-        if stow -n -v -t "$TARGET_DIR" "$package" 2>&1 | grep -q "existing target"; then
+        if stow -n -v $(stow_flags "$package") -t "$TARGET_DIR" "$package" 2>&1 | grep -q "existing target"; then
             print_warning "Conflicts detected for package: $package"
             NEEDS_BACKUP=true
         fi
@@ -215,7 +227,7 @@ if [ "$FORCE" = false ] && [ "$DELETE" = false ] && [ "$DRY_RUN" = false ]; then
             cd "$STOW_DIR"
 
             # Get list of files that would be linked
-            stow -n -v -t "$TARGET_DIR" "$package" 2>&1 | grep "existing target" | while read -r line; do
+            stow -n -v $(stow_flags "$package") -t "$TARGET_DIR" "$package" 2>&1 | grep "existing target" | while read -r line; do
                 # Extract file path from stow output
                 if [[ $line =~ existing\ target\ is\ (.+)\ not ]]; then
                     conflicting_file="${BASH_REMATCH[1]}"
@@ -274,9 +286,9 @@ elif [ "$RESTOW" = true ]; then
         print_info "Restowing $package..."
 
         if [ "$DRY_RUN" = true ]; then
-            stow -n -R -v -t "$TARGET_DIR" "$package"
+            stow -n -R -v $(stow_flags "$package") -t "$TARGET_DIR" "$package"
         else
-            if stow -R -t "$TARGET_DIR" "$package" 2>&1; then
+            if stow -R $(stow_flags "$package") -t "$TARGET_DIR" "$package" 2>&1; then
                 print_success "$package restowed"
             else
                 print_error "$package restow failed"
@@ -291,9 +303,9 @@ else
         print_info "Deploying $package..."
 
         if [ "$DRY_RUN" = true ]; then
-            stow -n -v -t "$TARGET_DIR" "$package"
+            stow -n -v $(stow_flags "$package") -t "$TARGET_DIR" "$package"
         else
-            if stow -t "$TARGET_DIR" "$package" 2>&1; then
+            if stow $(stow_flags "$package") -t "$TARGET_DIR" "$package" 2>&1; then
                 print_success "$package deployed"
             else
                 print_error "$package deployment failed"
@@ -303,6 +315,26 @@ else
 fi
 
 cd - > /dev/null
+
+################################################################################
+# Claude Status Line
+################################################################################
+
+if [ "$DELETE" = false ]; then
+    for package in "${PACKAGES[@]}"; do
+        if [ "$package" = "claude" ]; then
+            print_header "Configuring Claude Status Line"
+
+            STATUSLINE_ARGS=()
+            if [ "$DRY_RUN" = true ]; then
+                STATUSLINE_ARGS+=(--dry-run)
+            fi
+
+            "$SCRIPT_DIR/claude-statusline.sh" "${STATUSLINE_ARGS[@]}" || print_warning "Status line configuration encountered issues"
+            break
+        fi
+    done
+fi
 
 ################################################################################
 # Skills Sync
