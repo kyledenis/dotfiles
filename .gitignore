@@ -102,3 +102,6 @@ dotfiles-old/
 
 # Local service credentials
 stow/opencode/.config/opencode/service.json
+
+# Cursor feature-flag cache: records the current IP address and the Cursor account ID
+stow/cursor/.config/cursor/statsig-cache.json
