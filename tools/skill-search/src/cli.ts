@@ -16,8 +16,9 @@ import { loadTaxonomy, questions, taxonomyPath } from "./taxonomy.ts";
 
 const USAGE = `skill-search: find the installed agent skill for the moment you are in
 
-  skill-search [words]         search installed skills: a picker in a terminal, a ranked list otherwise (find --help)
-  skill-search find [words]    the same, for words that are also command names (skill-search find status)
+  skill-search find [words]    search installed skills: a picker in a terminal, a ranked list otherwise (find --help)
+  skill-search [words]         the same when typed by hand; agents write find, since a first word such as
+                               status or sync runs that command instead
   skill-search init            create the data folder and print the hook to install
   skill-search sync            classify new or changed skills, then render
   skill-search render          rebuild INDEX.md and the entry files from saved verdicts
@@ -31,14 +32,15 @@ options: --dry-run (sync, refresh), --reclassify (sync, refresh: ask again for e
          --wait (hook: wait up to 15 s for the refresh to finish), --emit (hook: print INDEX.md as context)
 data: $SKILL_SEARCH_DIR or ~/.agents/skill-search`;
 
-const FIND_HELP = `skill-search [words]: find installed skills by what you want to do, or by name
+const FIND_HELP = `skill-search find [words]: find installed skills by what you want to do, or by name
 
 Words can be a skill's name ("clean-copy"), a topic ("flaky test") or a direction ("make the
 interface feel calmer"). Skills are ranked by meaning and by matching words together. Meaning
 needs a local embedding server (LM Studio at localhost:1234 by default, set with \`embed:\` in
 config.yaml); without one, words alone decide and a note on stderr says why.
 
-\`skill-search find [words]\` is the same command, for when a search word is also a command name.
+Typed by hand, \`find\` can be left out (\`skill-search flaky test\`) unless the first word is a
+command name: \`skill-search status page\` prints the map's status instead. Agents always write it.
 In a terminal with fzf it opens a picker with each skill in a preview pane: type to search,
 enter prints the skill's slash command and path, ctrl-y copies the slash command (or the path
 when it has none), esc quits.
@@ -51,11 +53,11 @@ Options:
 
 Examples:
   skill-search
-  skill-search flaky test
-  skill-search make the onboarding feel less like a form
-  skill-search "tool calling" --plain
-  skill-search swiftui animation --json --limit 5
-  skill-search find status
+  skill-search find flaky test
+  skill-search find make the onboarding feel less like a form
+  skill-search find "tool calling" --plain
+  skill-search find swiftui animation --json --limit 5
+  skill-search find status page
 
 Exits 1 when nothing matches.`;
 
@@ -250,7 +252,7 @@ async function find(words: string[]): Promise<number> {
   if (flags.help) return console.log(FIND_HELP), 0;
   const limit = flags.limit === undefined ? 15 : Number(flags.limit);
   if (!Number.isInteger(limit) || limit < 1) {
-    console.error(`--limit takes a whole number above 0, not "${flags.limit}".\n  skill-search ${words.join(" ") || "<words>"} --limit 5`);
+    console.error(`--limit takes a whole number above 0, not "${flags.limit}".\n  skill-search find ${words.join(" ") || "<words>"} --limit 5`);
     return 2;
   }
   const query = words.join(" ");
@@ -276,7 +278,7 @@ async function find(words: string[]): Promise<number> {
   const r = await searcher.query(query, QUERY_MS);
   if (r.mode.by === "words" && r.mode.why && r.mode.why !== "off" && !flags.quiet) console.error(`searched by words only: ${r.mode.why}`);
   if (!r.cards.length) {
-    console.error(`No skill matches "${query}".\n  skill-search <fewer or broader words>\n  skill-search --plain --limit ${list.length}   lists every skill`);
+    console.error(`No skill matches "${query}".\n  skill-search find <fewer or broader words>\n  skill-search find --plain --limit ${list.length}   lists every skill`);
     return 1;
   }
   process.stdout.write(flags.json ? JSON.stringify(r.cards.slice(0, limit), null, 1) + "\n" : plain(r.cards, limit));

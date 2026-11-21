@@ -1,6 +1,6 @@
 ---
 name: skill-search
-description: Use when setting up or maintaining skill-search, which files every installed skill by the moment it helps with into a skill map and searches it. Also use when the map's INDEX.md says skills are waiting to be filed, when a skill is filed in the wrong place, or to search installed skills by words (`skill-search <words>`).
+description: Use when setting up or maintaining skill-search, which files every installed skill by the moment it helps with into a skill map and searches it. Also use when the map's INDEX.md says skills are waiting to be filed, when a skill is filed in the wrong place, or to search installed skills by words (`skill-search find <words>`).
 ---
 
 # Skill search
@@ -16,7 +16,7 @@ Run the CLI as `skill-search` when it is on PATH, otherwise as `node <this skill
 
 ## Searching
 
-`skill-search <words>` takes a skill name, a topic or a plain description of what you are about to do ("the context window keeps filling up"), ranks installed skills by meaning and by matching words, and prints one block per skill: name, slash command, moments, full description and path. Add `--json` for JSON and `--limit <n>` for more results. Meaning needs the local embedding server (LM Studio at `localhost:1234` by default, `embed:` in `config.yaml`); without it a line on stderr says the search used words only. In a terminal with fzf it opens a picker with a preview instead. Use `skill-search find <words>` when a word is also a command name, such as `status`.
+`skill-search find <words>` takes a skill name, a topic or a plain description of what you are about to do ("the context window keeps filling up"), ranks installed skills by meaning and by matching words, and prints one block per skill: name, slash command, moments, full description and path. Add `--json` for JSON and `--limit <n>` for more results. Meaning needs the local embedding server (LM Studio at `localhost:1234` by default, `embed:` in `config.yaml`); without it a line on stderr says the search used words only. In a terminal with fzf it opens a picker with a preview instead. Always write `find`: without it, a search whose first word is a command name, such as `status`, `sync` or `refresh`, runs that command instead of searching.
 
 ## First-time setup
 

@@ -33,7 +33,7 @@ Suggest which mode applies based on the complexity you perceive. I will confirm 
 
 When a skill matches the task, follow its methodology rather than improvising. Skills are authoritative — they encode tested patterns and workflows that should be applied as written.
 
-To find the skills that match, run `skill-search <what you are about to do>` at the start of a task and before each step: a few words, a topic, or a plain description of the task ("the tests pass locally but fail in CI"). It prints the best-matching skills with the path to each SKILL.md; read the ones that fit and follow them. `~/.agents/skill-search/INDEX.md` is the full map, filing every installed skill by the moment it helps with.
+To find the skills that match, run `skill-search find <what you are about to do>` at the start of a task and before each step: a few words, a topic, or a plain description of the task ("the tests pass locally but fail in CI"). It prints the best-matching skills with the path to each SKILL.md; read the ones that fit and follow them. `~/.agents/skill-search/INDEX.md` is the full map, filing every installed skill by the moment it helps with.
 
 ### Before Implementation (Exploration Mode)
 

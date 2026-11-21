@@ -206,7 +206,7 @@ show_skills() {
     echo ""
     echo -e "  ${DIM}Finding one${NC}"
     print_cmd "skill-search" "Browse every installed skill in a picker"
-    print_cmd "skill-search <words>" "Find the skill for a task: words or a direction"
+    print_cmd "skill-search find <words>" "Find the skill for a task: words or a direction"
     print_cmd "skill-search status" "What is filed, waiting or out of date"
     echo ""
     echo -e "  ${DIM}Channels: yours (~/.skills), vendored upstream, Claude plugins.${NC}"
